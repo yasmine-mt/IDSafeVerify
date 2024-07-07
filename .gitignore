@@ -5,7 +5,11 @@ __pycache__/
 
 # C extensions
 *.so
-
+*.png
+*.jpg
+*.jpeg
+*.bat
+make.bat
 # Distribution / packaging
 .Python
 build/

@@ -7,6 +7,7 @@
 #if its passport we upload just the front (To scan the mrz and retrieve the img)
 # else we upload the front(To retrieve the face) and the back (to scan the mrz)
 #Add documentation
+#when upload show the image ploaded instead of its title
 
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request
@@ -17,8 +18,23 @@ import pycountry
 import numpy as np
 import cv2
 
+
 def asfarray(a, dtype=np.float64):
+    """
+    Converts input to an array of the given data type.
+
+    Parameters:
+    a: array_like
+        Input data, in any form that can be converted to an array.
+    dtype: data-type, optional
+        Desired data-type for the array, default is np.float64.
+
+    Returns:
+    out: ndarray
+        Array interpretation of `a`.
+    """
     return np.asarray(a, dtype=dtype)
+
 
 np.asfarray = asfarray
 
@@ -28,48 +44,136 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 detector = MrzDetector()
 reader = MrzReader()
 
+
 def normalize_date(date_str):
+    """
+    Normalizes a date string from 'yymmdd' format to 'dd/mm/yyyy'.
+
+    Parameters:
+    date_str: str
+        Date string in 'yymmdd' format.
+
+    Returns:
+    str
+        Date string in 'dd/mm/yyyy' format or 'Invalid Date' if parsing fails.
+    """
     try:
         date_obj = datetime.strptime(date_str, '%y%m%d').date()
         return date_obj.strftime('%d/%m/%Y')
     except ValueError:
         return 'Invalid Date'
 
+
 def normalize_country(country_code):
+    """
+    Normalizes a country code to its full country name.
+
+    Parameters:
+    country_code: str
+        Alpha-3 country code.
+
+    Returns:
+    str
+        Full country name or 'Unknown' if the code is invalid.
+    """
     try:
         country = pycountry.countries.get(alpha_3=country_code)
         return country.name if country else 'Unknown'
     except Exception:
         return 'Unknown'
 
+
 def normalize_nationality(nationality_code):
+    """
+    Normalizes a nationality code to its full country name.
+
+    Parameters:
+    nationality_code: str
+        Alpha-3 nationality code.
+
+    Returns:
+    str
+        Full country name or 'Unknown' if the code is invalid.
+    """
     try:
         country = pycountry.countries.get(alpha_3=nationality_code)
         return country.name if country else 'Unknown'
     except Exception:
         return 'Unknown'
 
+
 def normalize_document_id(doc_id):
+    """
+    Normalizes a document ID by removing non-alphanumeric characters and converting to uppercase.
+
+    Parameters:
+    doc_id: str
+        Document ID string.
+
+    Returns:
+    str
+        Normalized document ID.
+    """
     return ''.join(filter(str.isalnum, doc_id)).upper()
 
+
 def normalize_document_type(document_type):
+    """
+    Normalizes a document type to a readable string.
+
+    Parameters:
+    document_type: str
+        Document type code ('ID', 'I', 'P').
+
+    Returns:
+    str
+        'Identity Card' for 'ID' or 'I', 'Passport' for 'P'.
+    """
     if document_type == 'ID' or document_type == 'I':
         return 'Identity Card'
     elif document_type == 'P':
         return 'Passport'
 
+
 def normalize_sex(sex):
+    """
+    Normalizes a sex code to a readable string.
+
+    Parameters:
+    sex: str
+        Sex code ('F', 'M').
+
+    Returns:
+    str
+        'Female' for 'F', 'Male' for 'M'.
+    """
     if sex == 'F':
         return 'Female'
     elif sex == 'M':
         return 'Male'
 
+
 @app.route('/')
 def index():
+    """
+    Renders the index page.
+
+    Returns:
+    HTML template
+        Rendered 'index.html'.
+    """
     return render_template('index.html', error=None)
+
 
 @app.route('/upload_back', methods=['POST'])
 def upload_back():
+    """
+    Handles the upload of the back side of an ID card, processes the MRZ data, and renders the upload front page.
+
+    Returns:
+    HTML template
+        Rendered 'upload_front.html' with MRZ data or 'index.html' with an error.
+    """
     error = None
     if 'file' not in request.files:
         error = 'No file part'
@@ -117,8 +221,12 @@ def upload_back():
             return render_template('index.html', error=error)
     return render_template('index.html', error=error)
 
+
 @app.route('/upload_front', methods=['POST'])
 def upload_front():
+    """
+    Uploads the front image of the ID, detects the face, and returns a larger, circular cropped face image.
+    """
     error = None
     face_filename = None
 
@@ -155,12 +263,31 @@ def upload_front():
                 return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
             else:
                 for (x, y, w, h) in faces:
-                    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                    margin = int(0.2 * w)  # Increase crop size by 20% around the face
+                    x_start = max(x - margin, 0)
+                    y_start = max(y - margin, 0)
+                    x_end = min(x + w + margin, img.shape[1])
+                    y_end = min(y + h + margin, img.shape[0])
 
-                    face_crop = img[y:y + h, x:x + w]
-                    face_filename = "face_" + secure_filename(file.filename)
+                    face_crop = img[y_start:y_end, x_start:x_end]
+
+                    # Create a circular mask
+                    mask = np.zeros((face_crop.shape[0], face_crop.shape[1]), dtype=np.uint8)
+                    center = (face_crop.shape[1] // 2, face_crop.shape[0] // 2)
+                    radius = min(center[0], center[1], face_crop.shape[1] - center[0], face_crop.shape[0] - center[1])
+                    cv2.circle(mask, center, radius, (255, 255, 255), -1)
+
+                    # Apply the circular mask to the face crop
+                    face_crop_masked = cv2.bitwise_and(face_crop, face_crop, mask=mask)
+
+                    # Create an alpha channel
+                    b, g, r = cv2.split(face_crop_masked)
+                    alpha = mask
+                    face_crop_rgba = cv2.merge((b, g, r, alpha))
+
+                    face_filename = "face_" + secure_filename(file.filename).rsplit('.', 1)[0] + ".png"
                     face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
-                    cv2.imwrite(face_file_path, face_crop)
+                    cv2.imwrite(face_file_path, face_crop_rgba)
 
     except Exception as e:
         error = str(e)
@@ -170,6 +297,17 @@ def upload_front():
     return render_template('profile.html', face_filename=face_filename, mrz_data=mrz_data, error=None)
 
 def find_existing_face_image(mrz_data_str):
+    """
+    Finds an existing face image based on MRZ data.
+
+    Parameters:
+    mrz_data_str: str
+        String representation of MRZ data.
+
+    Returns:
+    str
+        Filename of the existing face image or None if not found.
+    """
     try:
         mrz_data = eval(mrz_data_str)
         if 'ID' in mrz_data:
@@ -182,6 +320,7 @@ def find_existing_face_image(mrz_data_str):
     except Exception as e:
         print(f"Error finding existing face image: {str(e)}")
         return None
+
 
 if __name__ == '__main__':
     app.run(debug=True)
