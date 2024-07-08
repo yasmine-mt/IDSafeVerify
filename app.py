@@ -116,7 +116,32 @@ def normalize_document_id(doc_id):
     """
     return ''.join(filter(str.isalnum, doc_id)).upper()
 
+def detect_face(image_path):
+    """
+    Detects faces in the given image using OpenCV's Haar Cascade classifier.
 
+    Parameters:
+    image_path: str
+        Path to the image file.
+
+    Returns:
+    tuple
+        (face_found: bool, face_coordinates: tuple or None)
+        face_found: True if a face is detected, False otherwise.
+        face_coordinates: Tuple of (x, y, w, h) coordinates of the detected face, or None if no face is detected.
+    """
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    img = cv2.imread(image_path)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Detect faces
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
+
+    if len(faces) > 0:
+        (x, y, w, h) = faces[0]
+        return True, (x, y, w, h)
+    else:
+        return False, None
 def normalize_document_type(document_type):
     """
     Normalizes a document type to a readable string.
@@ -131,7 +156,7 @@ def normalize_document_type(document_type):
     """
     if document_type == 'ID' or document_type == 'I':
         return 'Identity Card'
-    elif document_type == 'P':
+    elif document_type == 'P' or document_type =='PP':
         return 'Passport'
 
 
@@ -168,11 +193,8 @@ def index():
 @app.route('/upload_back', methods=['POST'])
 def upload_back():
     """
-    Handles the upload of the back side of an ID card, processes the MRZ data, and renders the upload front page.
-
-    Returns:
-    HTML template
-        Rendered 'upload_front.html' with MRZ data or 'index.html' with an error.
+    Handles the upload of the back side of an ID card, processes the MRZ data,
+    and decides whether to proceed to front upload or directly to profile page.
     """
     error = None
     if 'file' not in request.files:
@@ -215,10 +237,57 @@ def upload_back():
             if 'nationality' in result:
                 normalized_fields['Nationality'] = normalize_nationality(result['nationality'])
 
-            return render_template('upload_front.html', mrz_data=normalized_fields, error=None)
+            if normalized_fields.get('Document type') == 'Passport':
+                existing_face_filename = find_existing_face_image(str(normalized_fields))
+                if existing_face_filename:
+                    face_filename = existing_face_filename
+                else:
+                    img = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
+                    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+                    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+
+                    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+
+                    if len(faces) == 0:
+                        error = "No faces detected in the image."
+                        return render_template('index.html', error=error)
+
+                    for (x, y, w, h) in faces:
+                        margin = int(0.2 * w)
+                        x_start = max(x - margin, 0)
+                        y_start = max(y - margin, 0)
+                        x_end = min(x + w + margin, img.shape[1])
+                        y_end = min(y + h + margin, img.shape[0])
+
+                        face_crop = img[y_start:y_end, x_start:x_end]
+
+                        # Create a circular mask
+                        mask = np.zeros((face_crop.shape[0], face_crop.shape[1]), dtype=np.uint8)
+                        center = (face_crop.shape[1] // 2, face_crop.shape[0] // 2)
+                        radius = min(center[0], center[1], face_crop.shape[1] - center[0], face_crop.shape[0] - center[1])
+                        cv2.circle(mask, center, radius, (255, 255, 255), -1)
+
+                        # Apply the circular mask to the face crop
+                        face_crop_masked = cv2.bitwise_and(face_crop, face_crop, mask=mask)
+
+                        # Create an alpha channel
+                        b, g, r = cv2.split(face_crop_masked)
+                        alpha = mask
+                        face_crop_rgba = cv2.merge((b, g, r, alpha))
+
+                        face_filename = "face_" + secure_filename(file.filename).rsplit('.', 1)[0] + ".png"
+                        face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
+                        cv2.imwrite(face_file_path, cv2.cvtColor(face_crop_rgba, cv2.COLOR_RGBA2BGRA))
+
+                return render_template('profile.html', face_filename=face_filename, mrz_data=normalized_fields, error=None)
+            else:
+                return render_template('upload_front.html', mrz_data=str(normalized_fields), error=None)
+
         except Exception as e:
             error = str(e)
             return render_template('index.html', error=error)
+
     return render_template('index.html', error=error)
 
 
@@ -263,7 +332,7 @@ def upload_front():
                 return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
             else:
                 for (x, y, w, h) in faces:
-                    margin = int(0.2 * w)  # Increase crop size by 20% around the face
+                    margin = int(0.2 * w)
                     x_start = max(x - margin, 0)
                     y_start = max(y - margin, 0)
                     x_end = min(x + w + margin, img.shape[1])
