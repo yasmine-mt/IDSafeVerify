@@ -6,23 +6,36 @@
 # Add a home page which ask the user to check the type of document passport or identity card
 #if its passport we upload just the front (To scan the mrz and retrieve the img)
 # else we upload the front(To retrieve the face) and the back (to scan the mrz)
-
+#Dont save front or back of the id document just the face cuz its just gaspillage
 
 from werkzeug.utils import secure_filename
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 import os
 from readmrz import MrzDetector, MrzReader
 from datetime import datetime
 import pycountry
+import numpy as np
 import cv2
 
-from werkzeug.utils import secure_filename
-from flask import Flask, render_template, request, redirect, url_for, flash
-import os
-from readmrz import MrzDetector, MrzReader
-from datetime import datetime
-import pycountry
-import cv2
+
+def asfarray(a, dtype=np.float64):
+    """
+    Converts input to an array of the given data type.
+
+    Parameters:
+    a: array_like
+        Input data, in any form that can be converted to an array.
+    dtype: data-type, optional
+        Desired data-type for the array, default is np.float64.
+
+    Returns:
+    out: ndarray
+        Array interpretation of a.
+    """
+    return np.asarray(a, dtype=dtype)
+
+
+np.asfarray = asfarray
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = './static/id_photos'
@@ -31,9 +44,37 @@ detector = MrzDetector()
 reader = MrzReader()
 
 
+
+def find_existing_face_image(face_filename):
+    """
+    Check if a face image file already exists in the upload folder.
+
+    Parameters:
+    face_filename: str
+        Filename of the face image to check.
+
+    Returns:
+    str or None
+        Full path to the existing face image file if found, None otherwise.
+    """
+    upload_folder = './static/id_photos'  # Adjust as per your actual upload folder
+    face_file_path = os.path.join(upload_folder, face_filename)
+    if os.path.isfile(face_file_path):
+        return face_file_path
+    else:
+        return None
+
 def normalize_date(date_str):
     """
     Normalizes a date string from 'yymmdd' format to 'dd/mm/yyyy'.
+
+    Parameters:
+    date_str: str
+        Date string in 'yymmdd' format.
+
+    Returns:
+    str
+        Date string in 'dd/mm/yyyy' format or 'Invalid Date' if parsing fails.
     """
     try:
         date_obj = datetime.strptime(date_str, '%y%m%d').date()
@@ -45,6 +86,14 @@ def normalize_date(date_str):
 def normalize_country(country_code):
     """
     Normalizes a country code to its full country name.
+
+    Parameters:
+    country_code: str
+        Alpha-3 country code.
+
+    Returns:
+    str
+        Full country name or 'Unknown' if the code is invalid.
     """
     try:
         country = pycountry.countries.get(alpha_3=country_code)
@@ -56,6 +105,14 @@ def normalize_country(country_code):
 def normalize_nationality(nationality_code):
     """
     Normalizes a nationality code to its full country name.
+
+    Parameters:
+    nationality_code: str
+        Alpha-3 nationality code.
+
+    Returns:
+    str
+        Full country name or 'Unknown' if the code is invalid.
     """
     try:
         country = pycountry.countries.get(alpha_3=nationality_code)
@@ -67,6 +124,14 @@ def normalize_nationality(nationality_code):
 def normalize_document_id(doc_id):
     """
     Normalizes a document ID by removing non-alphanumeric characters and converting to uppercase.
+
+    Parameters:
+    doc_id: str
+        Document ID string.
+
+    Returns:
+    str
+        Normalized document ID.
     """
     return ''.join(filter(str.isalnum, doc_id)).upper()
 
@@ -74,8 +139,16 @@ def normalize_document_id(doc_id):
 def normalize_document_type(document_type):
     """
     Normalizes a document type to a readable string.
+
+    Parameters:
+    document_type: str
+        Document type code ('ID', 'I', 'P').
+
+    Returns:
+    str
+        'Identity Card' for 'ID' or 'I', 'Passport' for 'P'.
     """
-    if document_type in ['ID', 'I']:
+    if document_type == 'ID' or document_type == 'I':
         return 'Identity Card'
     elif document_type == 'P':
         return 'Passport'
@@ -84,6 +157,14 @@ def normalize_document_type(document_type):
 def normalize_sex(sex):
     """
     Normalizes a sex code to a readable string.
+
+    Parameters:
+    sex: str
+        Sex code ('F', 'M').
+
+    Returns:
+    str
+        'Female' for 'F', 'Male' for 'M'.
     """
     if sex == 'F':
         return 'Female'
@@ -91,71 +172,14 @@ def normalize_sex(sex):
         return 'Male'
 
 
-def normalize_mrz_data(result):
-    """
-    Normalize MRZ data for rendering.
-    """
-    normalized_fields = {}
-    if 'optional_data' in result and result['optional_data'] is not None:
-        normalized_fields['ID'] = result['optional_data']
-    if 'document_number' in result:
-        normalized_fields['Document number'] = normalize_document_id(result['document_number'])
-    if 'document_type' in result:
-        normalized_fields['Document type'] = normalize_document_type(result['document_type'])
-    if 'surname' in result:
-        normalized_fields['Last name'] = result['surname']
-    if 'name' in result:
-        normalized_fields['First name'] = result['name']
-    if 'sex' in result:
-        normalized_fields['Gender'] = normalize_sex(result['sex'])
-    if 'birth_date' in result:
-        normalized_fields['Birth date'] = normalize_date(result['birth_date'])
-    if 'expiry_date' in result:
-        normalized_fields['Expiry date'] = normalize_date(result['expiry_date'])
-    if 'country' in result:
-        normalized_fields['Country'] = normalize_country(result['country'])
-    if 'nationality' in result:
-        normalized_fields['Nationality'] = normalize_nationality(result['nationality'])
-
-    return normalized_fields
-
-
-def process_passport_face(filepath):
-    """
-    Process the face from the passport.
-    """
-    try:
-        image = cv2.imread(filepath)
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-        # Face detection with cascade classifier
-        faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        faces = faceCascade.detectMultiScale(
-            gray,
-            scaleFactor=1.2,
-            minNeighbors=5,
-            minSize=(30, 30)
-        )
-
-        for (x, y, w, h) in faces:
-            cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            roi_color = image[y:y + h, x:x + w]
-            face_filename = "face_" + secure_filename(filepath).rsplit('.', 1)[0] + ".png"
-            face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
-            cv2.imwrite(face_file_path, roi_color)
-
-            return face_file_path, None
-
-        return None, "No faces detected in the image."
-
-    except Exception as e:
-        return None, str(e)
-
-
 @app.route('/')
 def index():
     """
     Renders the index page.
+
+    Returns:
+    HTML template
+        Rendered 'index.html'.
     """
     return render_template('index.html', error=None)
 
@@ -164,9 +188,12 @@ def index():
 def upload_back():
     """
     Handles the upload of the back side of an ID card, processes the MRZ data, and renders the upload front page.
+
+    Returns:
+    HTML template
+        Rendered 'upload_front.html' with MRZ data or 'index.html' with an error.
     """
     error = None
-
     if 'file' not in request.files:
         error = 'No file part'
         return render_template('index.html', error=error)
@@ -180,118 +207,178 @@ def upload_back():
         filename = "back_" + secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
-
         try:
-            # Process MRZ data
             image = detector.read(file_path)
             cropped = detector.crop_area(image)
             result = reader.process(cropped)
-            normalized_fields = normalize_mrz_data(result)
 
-            # if normalized_fields.get('Document type') == 'Passport':
-            #     # Process passport face
-            #     face_filename, error = process_passport_face(file_path)
-            #     if error:
-            #         return render_template('upload_front.html', error=error)
-            #
-            #     return render_template('profile.html', face_filename=face_filename, mrz_data=normalized_fields, error=None)
-            # else:
+            normalized_fields = {}
+            if 'optional_data' in result and result['optional_data'] is not None:
+                normalized_fields['ID'] = result['optional_data']
+            if 'document_number' in result:
+                normalized_fields['Document number'] = normalize_document_id(result['document_number'])
+            if 'document_type' in result:
+                normalized_fields['Document type'] = normalize_document_type(result['document_type'])
+            if 'surname' in result:
+                normalized_fields['Last name'] = result['surname']
+            if 'name' in result:
+                normalized_fields['First name'] = result['name']
+            if 'sex' in result:
+                normalized_fields['Gender'] = normalize_sex(result['sex'])
+            if 'birth_date' in result:
+                normalized_fields['Birth date'] = normalize_date(result['birth_date'])
+            if 'expiry_date' in result:
+                normalized_fields['Expiry date'] = normalize_date(result['expiry_date'])
+            if 'country' in result:
+                normalized_fields['Country'] = normalize_country(result['country'])
+            if 'nationality' in result:
+                normalized_fields['Nationality'] = normalize_nationality(result['nationality'])
+
             return render_template('upload_front.html', mrz_data=normalized_fields, error=None)
-
         except Exception as e:
             error = str(e)
             return render_template('index.html', error=error)
-
-    return render_template('index.html', error='Unknown error occurred')
+    return render_template('index.html', error=error)
 
 
 @app.route('/upload_front', methods=['POST'])
 def upload_front():
     """
-    Handles the upload of the front side of an ID card, detects the face, and renders the profile page.
+    Uploads the front image of the ID, detects the face, and returns a larger, circular cropped face image.
     """
     error = None
     face_filename = None
 
     if 'file' not in request.files:
         error = 'No file part'
-        return render_template('upload_front.html', error=error)
+        return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
 
     file = request.files['file']
     if file.filename == '':
         error = 'No selected file'
-        return render_template('upload_front.html', error=error)
+        return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
 
     try:
         filename = "front_" + secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
 
-        image = cv2.imread(file_path)
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        existing_face_filename = find_existing_face_image(request.form.get('mrz_data'))
+        if existing_face_filename:
+            face_filename = existing_face_filename
+        else:
+            file.save(file_path)
+            img = cv2.imread(file_path)
+            if img is None:
+                raise Exception(f"Error: Could not read image from '{file_path}'.")
 
-        # Face detection with cascade classifier
-        faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
-        faces = faceCascade.detectMultiScale(
-            gray,
-            scaleFactor=1.2,
-            minNeighbors=5,
-            minSize=(30, 30)
-        )
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        for (x, y, w, h) in faces:
-            cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            roi_color = image[y:y + h, x:x + w]
-            face_filename = "face_" + secure_filename(file.filename).rsplit('.', 1)[0] + ".png"
-            face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
-            cv2.imwrite(face_file_path, roi_color)
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
 
-            return render_template('profile.html', face_filename=face_filename, error=None)
+            faces = face_cascade.detectMultiScale(gray, 1.1, 4)
 
-        return render_template('upload_front.html', error='No faces detected in the image.')
+            if len(faces) == 0:
+                error = "No faces detected in the image."
+                return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
+            else:
+                for (x, y, w, h) in faces:
+                    margin = int(0.2 * w)  # Increase crop size by 20% around the face
+                    x_start = max(x - margin, 0)
+                    y_start = max(y - margin, 0)
+                    x_end = min(x + w + margin, img.shape[1])
+                    y_end = min(y + h + margin, img.shape[0])
+
+                    face_crop = img[y_start:y_end, x_start:x_end]
+
+                    # Create a circular mask
+                    mask = np.zeros((face_crop.shape[0], face_crop.shape[1]), dtype=np.uint8)
+                    center = (face_crop.shape[1] // 2, face_crop.shape[0] // 2)
+                    radius = min(center[0], center[1], face_crop.shape[1] - center[0], face_crop.shape[0] - center[1])
+                    cv2.circle(mask, center, radius, (255, 255, 255), -1)
+
+                    # Apply the circular mask to the face crop
+                    face_crop_masked = cv2.bitwise_and(face_crop, face_crop, mask=mask)
+
+                    # Create an alpha channel
+                    b, g, r = cv2.split(face_crop_masked)
+                    alpha = mask
+                    face_crop_rgba = cv2.merge((b, g, r, alpha))
+
+                    face_filename = "face_" + secure_filename(file.filename).rsplit('.', 1)[0] + ".png"
+                    face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
+                    cv2.imwrite(face_file_path, face_crop_rgba)
 
     except Exception as e:
         error = str(e)
-        return render_template('upload_front.html', error=error)
+        return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
 
+    mrz_data = eval(request.form.get('mrz_data'))
+    return render_template('profile.html', face_filename=face_filename, mrz_data=mrz_data, error=None)
 
-@app.route('/verify_selfie', methods=['POST'])
-def verify_selfie():
+@app.route('/compare_selfie', methods=['POST'])
+def compare_selfie():
     """
-    Handles the verification of the uploaded selfie against the ID photo.
+    Compares the uploaded selfie with the ID photo and returns a comparison result.
     """
-    error = None
-    face_filename = request.form['face_filename']
-
+    comparison_result = None
     if 'selfie' not in request.files:
-        flash('No file part')
-        return redirect(url_for('index'))
-
+        return redirect(request.url)
     selfie = request.files['selfie']
     if selfie.filename == '':
-        flash('No selected file')
-        return redirect(url_for('index'))
+        return redirect(request.url)
 
-    try:
-        # Process uploaded selfie
-        selfie_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(selfie.filename))
-        selfie.save(selfie_path)
+    if selfie:
+        try:
+            selfie_filename = secure_filename(selfie.filename)
+            selfie_path = os.path.join(app.config['UPLOAD_FOLDER'], selfie_filename)
+            selfie.save(selfie_path)
 
-        # Perform face comparison logic (implement this part)
-        #here i should add the logic to the face comparaison
+            face_filename = request.form.get('face_filename')
+            if not face_filename:
+                return render_template('profile.html', error="Error: Face filename not provided.")
 
-        flash('Selfie verification successful!')
+            id_photo_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
+            id_photo = cv2.imread(id_photo_path)
+            if id_photo is None:
+                raise Exception(f"Error: Could not read image from '{id_photo_path}'.")
+            selfie_img = cv2.imread(selfie_path)
+            if selfie_img is None:
+                raise Exception(f"Error: Could not read image from '{selfie_path}'.")
 
-        return redirect(url_for('index'))
+            similarity_score = compare_images(id_photo, selfie_img)
+            if similarity_score >= 0.6:
+                comparison_result = "Similarity Score: {:.2f} - Faces match.".format(similarity_score)
+            else:
+                comparison_result = "Similarity Score: {:.2f} - Faces do not match.".format(similarity_score)
 
-    except Exception as e:
-        error = str(e)
-        flash(error)
-        return redirect(url_for('index'))
+            mrz_data = request.form.get('mrz_data')
+            return render_template('profile.html', face_filename=face_filename, mrz_data=mrz_data, comparison_result=comparison_result)
+
+        except Exception as e:
+            error = str(e)
+            return render_template('profile.html', error=error)
+
+    return render_template('profile.html', error="Unknown error occurred.")
+
+def compare_images(image1, image2):
+    """
+    Compares two images and returns a similarity score.
+    Adjust this function based on your specific comparison method.
+
+    Parameters:
+    image1: numpy.ndarray
+        First image (ID photo).
+    image2: numpy.ndarray
+        Second image (selfie).
+
+    Returns:
+    float
+        Similarity score between 0 and 1.
+    """
+    mse = np.mean((image1 - image2) ** 2)
+    similarity_score = 1 / (1 + mse)
+    return similarity_score
 
 
 if __name__ == '__main__':
-    app.secret_key = 'super_secret_key'
     app.run(debug=True)
-
-

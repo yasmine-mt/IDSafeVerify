@@ -82,45 +82,22 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="profile-photo">
-            {% if face_filename %}
-                <img src="{{ url_for('static', filename='id_photos/' ~ face_filename) }}" alt="Profile Photo">
-            {% else %}
-                <p>No profile photo available.</p>
-            {% endif %}
-        </div>
-        <h1>User Profile</h1>
-
-        {% if mrz_data %}
-            <ul class="list-group list-group-flush">
-                {% for key, value in mrz_data.items() %}
-                    <li class="list-group-item"><strong>{{ key }}</strong>: {{ value }}</li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>No MRZ data found.</p>
-        {% endif %}
-        {% if error %}
-            <p class="text-danger">{{ error }}</p>
-        {% endif %}
-           {% if face_filename %}
-            <form action="/compare_selfie" method="post" enctype="multipart/form-data">
-            <input type="file" name="selfie" accept="image/*" required>
-            <input type="hidden" name="face_filename" value="{{ face_filename }}">
-            <input type="submit" value="Compare Selfie">
-            </form>
-
-            <div>
-                {% if comparison_result %}
-                    <p>{{ comparison_result }}</p>
-                {% endif %}
+ <div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    Face Comparison Result
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Result:</h5>
+                    <p class="card-text">{{ comparison_result }}</p>
+                    <a href="/" class="btn btn-primary">Back to Home</a>
+                </div>
             </div>
-        {% endif %}
-    <hr>
-        <a href="/" class="btn back-button">Go Back Home</a>
+        </div>
     </div>
-
+</div>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
