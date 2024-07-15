@@ -5,8 +5,6 @@
 #if its passport we upload just the front (To scan the mrz and retrieve the img)
 # else we upload the front(To retrieve the face) and the back (to scan the mrz)
 
-#still need to check the face selfie i want it good i guess after the selfie
-#i will do the thing that accept any id document
 
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, redirect
@@ -97,6 +95,13 @@ def normalize_sex(sex):
         return 'Male'
 
 @app.route('/')
+def home():
+    """
+    Renders the index page.
+    """
+    return render_template('Page_Accueil.html', error=None)
+
+@app.route('/home')
 def index():
     """
     Renders the index page.
