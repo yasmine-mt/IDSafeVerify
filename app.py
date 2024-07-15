@@ -4,10 +4,10 @@
 #but it should been displayed in index.html
 #if its passport we upload just the front (To scan the mrz and retrieve the img)
 # else we upload the front(To retrieve the face) and the back (to scan the mrz)
-
+#Add animation on the id document after the upload as if it was a scanner with green lines
 
 from werkzeug.utils import secure_filename
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request
 import os
 from readmrz import MrzDetector, MrzReader
 from datetime import datetime
@@ -82,7 +82,7 @@ def normalize_document_type(document_type):
     """
     if document_type == 'ID' or document_type == 'I':
         return 'Identity Card'
-    elif document_type == 'P':
+    elif document_type == 'P' or document_type == 'PP':
         return 'Passport'
 
 def normalize_sex(sex):
@@ -95,7 +95,7 @@ def normalize_sex(sex):
         return 'Male'
 
 @app.route('/')
-def home():
+def Home():
     """
     Renders the index page.
     """
@@ -111,7 +111,7 @@ def index():
 @app.route('/upload_back', methods=['POST'])
 def upload_back():
     """
-    Handles the upload of the back side of an ID card, processes the MRZ data, and renders the upload front page.
+    Handles the upload of the back side of an ID card or a passport, processes the MRZ data, and renders the upload front page or profile page accordingly.
     """
     error = None
     if 'file' not in request.files:
@@ -156,7 +156,40 @@ def upload_back():
             if 'nationality' in result:
                 normalized_fields['Nationality'] = normalize_nationality(result['nationality'])
 
-            return render_template('upload_front.html', mrz_data=normalized_fields, error=None)
+            if normalized_fields.get('Document type') == 'Passport':
+                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+                faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+
+                if len(faces) == 0:
+                    error = "No faces detected in the image."
+                    return render_template('index.html', error=error)
+                else:
+                    for (x, y, w, h) in faces:
+                        margin = int(0.2 * w)
+                        x_start = max(x - margin, 0)
+                        y_start = max(y - margin, 0)
+                        x_end = min(x + w + margin, image.shape[1])
+                        y_end = min(y + h + margin, image.shape[0])
+
+                        face_crop = image[y_start:y_end, x_start:x_end]
+                        mask = np.zeros((face_crop.shape[0], face_crop.shape[1]), dtype=np.uint8)
+                        center = (face_crop.shape[1] // 2, face_crop.shape[0] // 2)
+                        radius = min(center[0], center[1], face_crop.shape[1] - center[0], face_crop.shape[0] - center[1])
+                        cv2.circle(mask, center, radius, (255, 255, 255), -1)
+
+                        face_crop_masked = cv2.bitwise_and(face_crop, face_crop, mask=mask)
+                        b, g, r = cv2.split(face_crop_masked)
+                        alpha = mask
+                        face_crop_rgba = cv2.merge((b, g, r, alpha))
+
+                        face_filename = "face_" + secure_filename(file.filename).rsplit('.', 1)[0] + ".png"
+                        face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
+                        cv2.imwrite(face_file_path, face_crop_rgba)
+
+                    return render_template('profile.html', face_filename=face_filename, mrz_data=normalized_fields, error=None)
+            else:
+                return render_template('upload_front.html', mrz_data=normalized_fields, error=None)
         except Exception as e:
             error = str(e)
             return render_template('index.html', error=error)
@@ -229,7 +262,6 @@ def upload_front():
     mrz_data = eval(request.form.get('mrz_data'))
     return render_template('profile.html', face_filename=face_filename, mrz_data=mrz_data, error=None)
 
-
 @app.route('/compare_selfie', methods=['POST'])
 def compare_selfie():
     if 'selfie' not in request.files:
@@ -252,30 +284,22 @@ def compare_selfie():
             face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
             if not os.path.exists(face_file_path):
                 return render_template('comparison_result.html', error="Error: Face image not found.")
-
             selfie_image = face_recognition.load_image_file(selfie_path)
             selfie_encodings = face_recognition.face_encodings(selfie_image)
-
             if len(selfie_encodings) == 0:
                 return render_template('comparison_result.html', error="Error: No faces detected in the selfie.")
-
             selfie_encoding = selfie_encodings[0]
-
             face_image = face_recognition.load_image_file(face_file_path)
             face_encodings = face_recognition.face_encodings(face_image)
-
             if len(face_encodings) == 0:
                 return render_template('comparison_result.html', error="Error: No faces detected in the ID photo.")
-
             face_encoding = face_encodings[0]
             distance = np.linalg.norm(selfie_encoding - face_encoding)
+            similarity_score = 1 - distance
             similarity_threshold = 0.6
             comparison_result = distance < similarity_threshold
-            similarity_score = 1 - distance / np.sqrt(len(selfie_encoding))
-
             selfie.close()
             os.remove(selfie_path)
-
             return render_template('comparison_result.html', face_filename=face_filename,
                                    comparison_result=comparison_result, similarity_score=similarity_score)
         except Exception as e:
@@ -283,7 +307,6 @@ def compare_selfie():
             return render_template('comparison_result.html', error=error)
 
     return render_template('comparison_result.html', error="Error: Something went wrong.")
-
 
 if __name__ == '__main__':
     app.run(debug=True)
