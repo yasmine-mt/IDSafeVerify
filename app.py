@@ -228,10 +228,11 @@ def upload_front():
 @app.route('/compare_selfie', methods=['POST'])
 def compare_selfie():
     if 'selfie' not in request.files:
-        return redirect(request.url)
+        return render_template('comparison_result.html', error="Error: No file part.")
+
     selfie = request.files['selfie']
     if selfie.filename == '':
-        return redirect(request.url)
+        return render_template('comparison_result.html', error="Error: No selected file.")
 
     if selfie:
         try:
@@ -241,31 +242,37 @@ def compare_selfie():
 
             face_filename = request.form.get('face_filename')
             if not face_filename:
-                return render_template('comparaison_result.html', error="Error: Face filename not provided.")
+                return render_template('comparison_result.html', error="Error: Face filename not provided.")
 
             face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
             if not os.path.exists(face_file_path):
                 return render_template('comparison_result.html', error="Error: Face image not found.")
+
             selfie_image = face_recognition.load_image_file(selfie_path)
+            selfie_encodings = face_recognition.face_encodings(selfie_image)
+
+            if len(selfie_encodings) == 0:
+                return render_template('comparison_result.html', error="Error: No faces detected in the selfie.")
+
+            selfie_encoding = selfie_encodings[0]
+
             face_image = face_recognition.load_image_file(face_file_path)
+            face_encodings = face_recognition.face_encodings(face_image)
 
-            selfie_encoding = face_recognition.face_encodings(selfie_image)
-            face_encoding = face_recognition.face_encodings(face_image)
+            if len(face_encodings) == 0:
+                return render_template('comparison_result.html', error="Error: No faces detected in the ID photo.")
 
-            if len(selfie_encoding) == 0 or len(face_encoding) == 0:
-                return render_template('comparison_result.html', error="Error: Could not find faces in one or both images.")
-
-            selfie_encoding = selfie_encoding[0]
-            face_encoding = face_encoding[0]
+            face_encoding = face_encodings[0]
             distance = np.linalg.norm(selfie_encoding - face_encoding)
-            similarity_score = 1 - distance
             similarity_threshold = 0.6
             comparison_result = distance < similarity_threshold
+            similarity_score = 1 - distance / np.sqrt(len(selfie_encoding))
+
             selfie.close()
             os.remove(selfie_path)
+
             return render_template('comparison_result.html', face_filename=face_filename,
                                    comparison_result=comparison_result, similarity_score=similarity_score)
-
         except Exception as e:
             error = str(e)
             return render_template('comparison_result.html', error=error)

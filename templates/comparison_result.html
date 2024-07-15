@@ -79,16 +79,16 @@
 <body>
     <div class="container">
         <h1>Face Comparison Result</h1>
-        <div class="profile-photo">
-        <img src="{{ url_for('static', filename='id_photos/' ~ face_filename) }}" alt="ID Photo">
-        </div>
-        {% if comparison_result %}
-        <p class="text-success mt-3">Identity verified successfully!</p>
-        <p class="font-weight-bold">Similarity Score: {{ similarity_score * 100 | round(2) }}%</p>
+        {% if error %}
+        <p class="text-danger mt-3">{{ error }}</p>
         {% else %}
-        <p class="text-danger mt-3">Identity verification failed!</p>
-            <p class="font-weight-bold">Similarity Score:0 %</p>
-
+            {% if comparison_result %}
+            <p class="text-success mt-3">Identity verified successfully!</p>
+            <p class="font-weight-bold">Similarity Score: {{ similarity_score * 100 | round(2) }}%</p>
+            {% else %}
+            <p class="text-danger mt-3">Identity verification failed!</p>
+            <p class="font-weight-bold">Similarity Score: {{ similarity_score * 100 | round(2) }}%</p>
+            {% endif %}
         {% endif %}
         <a href="/" class="btn btn-primary btn-lg btn-block mt-4">Back to Home</a>
     </div>
