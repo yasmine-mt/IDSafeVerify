@@ -4,7 +4,8 @@
 #but it should been displayed in index.html
 #if its passport we upload just the front (To scan the mrz and retrieve the img)
 # else we upload the front(To retrieve the face) and the back (to scan the mrz)
-#Add animation on the id document after the upload as if it was a scanner with green lines
+#i still have a problem with the upload front animations line
+
 
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request

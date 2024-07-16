@@ -3,16 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
+    <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
     <title>Upload Front of ID</title>
     <style>
-       body {
-            font-family: sans-serif;
-            background-color: #eeeeee;
+         body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+         .bg-animation {
+            background: linear-gradient(to right, #E7B98A,#F5F5DC, #FFDEAD, #FFF8DC);
+            background-size: 800% 100%;
+            animation: gradient 10s ease infinite;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+            text-align: center;
         }
 
+        @keyframes gradient {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+
         .file-upload {
-            background-color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.7);
             width: 600px;
             margin: 0 auto;
             padding: 20px;
@@ -32,7 +57,9 @@
             text-transform: uppercase;
             font-weight: 700;
         }
-
+         .file-upload h1 {
+            color: #000;
+        }
         .file-upload-btn:hover {
             background: #1AA059;
             color: #ffffff;
@@ -48,6 +75,7 @@
         .file-upload-content {
             display: none;
             text-align: center;
+            position: relative;
         }
 
         .file-upload-input {
@@ -89,11 +117,49 @@
             padding: 60px 0;
         }
 
+        .file-upload-image-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
         .file-upload-image {
             max-height: 200px;
             max-width: 200px;
             margin: auto;
             padding: 20px;
+            display: block;
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .scanner-line {
+            width: 90%;
+            height: 4px;
+            background-color: green;
+            box-shadow: 0 0 10px green;
+            position: absolute;
+            top: 0;
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes scan {
+            from {
+                top: 0;
+            }
+            to {
+                top: 100%;
+            }
         }
 
         .remove-image {
@@ -125,6 +191,7 @@
     </style>
 </head>
 <body>
+<div class="bg-animation">
     <div class="file-upload">
         <h1>Upload Front of ID</h1>
         {% if error %}
@@ -134,13 +201,18 @@
             <div class="image-upload-wrap">
                 <input class="file-upload-input" type="file" name="file" onchange="readURL(this);" accept="image/*" required>
                 <div class="drag-text">
-                    <h3>Drag and drop a file or select Add Image</h3>
+                    <h3>Drag and drop a file to add an Image</h3>
                 </div>
             </div>
             <input type="hidden" name="mrz_data" value="{{ mrz_data }}">
             <hr>
             <div class="file-upload-content">
-                <img class="file-upload-image" src="#" alt="your image" />
+                <div class="file-upload-image-wrapper">
+                    <img class="file-upload-image" src="#" alt="your image" />
+                    <div class="scanner-overlay">
+                        <div class="scanner-line"></div>
+                    </div>
+                </div>
                 <div class="image-title-wrap">
                     <button type="button" onclick="removeUpload()" class="remove-image">Remove <span class="image-title">Uploaded Image</span></button>
                 </div>
@@ -148,7 +220,7 @@
             <button class="file-upload-btn" type="submit">Upload</button>
         </form>
     </div>
-
+</div>
     <script class="jsbin" src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
     <script>
         function readURL(input) {
@@ -159,7 +231,7 @@
                     $('.image-upload-wrap').hide();
                     $('.file-upload-image').attr('src', e.target.result);
                     $('.file-upload-content').show();
-                    $('.image-title').html(input.files[0].name);
+                    $('.scanner-overlay').css('opacity', '1');
                 };
 
                 reader.readAsDataURL(input.files[0]);
@@ -172,6 +244,7 @@
             $('.file-upload-input').replaceWith($('.file-upload-input').clone());
             $('.file-upload-content').hide();
             $('.image-upload-wrap').show();
+            $('.scanner-overlay').css('opacity', '0');
         }
 
         $('.image-upload-wrap').bind('dragover', function () {

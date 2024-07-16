@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
+    <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
     <title>User Profile</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f0f0;
             color: #333;
             margin: 0;
             padding: 0;
@@ -17,16 +16,16 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            background: linear-gradient(to right, #E7B98A, #F5F5DC, #FFDEAD, #FFF8DC);
         }
 
-        .container {
-            max-width: 600px;
+        .content {
+            width: 100%;
             padding: 20px;
             background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
             text-align: center;
             animation: fadeIn 0.5s ease-in-out;
+            overflow-y: auto;
         }
 
         .profile-photo {
@@ -82,7 +81,7 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="content">
         <div class="profile-photo">
             {% if face_filename %}
                 <img src="{{ url_for('static', filename='id_photos/' ~ face_filename) }}" alt="Profile Photo">
@@ -104,11 +103,11 @@
         {% if error %}
             <p class="text-danger">{{ error }}</p>
         {% endif %}
-           {% if face_filename %}
+        {% if face_filename %}
             <form action="/compare_selfie" method="post" enctype="multipart/form-data">
-            <input type="file" name="selfie" accept="image/*" required>
-            <input type="hidden" name="face_filename" value="{{ face_filename }}">
-            <input type="submit" value="Compare Selfie">
+                <input type="file" name="selfie" accept="image/*" required>
+                <input type="hidden" name="face_filename" value="{{ face_filename }}">
+                <input type="submit" value="Compare Selfie">
             </form>
 
             <div>
@@ -117,7 +116,7 @@
                 {% endif %}
             </div>
         {% endif %}
-    <hr>
+        <hr>
         <a href="/" class="btn back-button">Go Back Home</a>
     </div>
 
