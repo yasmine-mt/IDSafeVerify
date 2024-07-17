@@ -309,6 +309,10 @@ def compare_selfie():
 
     return render_template('comparison_result.html', error="Error: Something went wrong.")
 
+@app.route('/liveness_detection', methods=['GET'])
+def liveness_detection():
+    return render_template('liveness_detection.html')
+
 if __name__ == '__main__':
     app.run(debug=True)
 
