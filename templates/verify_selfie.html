@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify by Selfie</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to right, #E7B98A, #F5F5DC, #FFDEAD, #FFF8DC);
+        }
+
+        .content {
+            padding: 20px;
+            background-color: #fff;
+            text-align: center;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <h1>Verify by Selfie</h1>
+        <form action="/compare_selfie" method="post" enctype="multipart/form-data">
+            <input type="file" name="selfie" accept="image/*" required>
+            <input type="hidden" name="face_filename" value="{{ face_filename }}">
+            <input type="submit" value="Compare Selfie" class="btn btn-primary">
+        </form>
+        <a href="/" class="btn btn-secondary mt-3">Go Back Home</a>
+    </div>
+</body>
+</html>

@@ -8,7 +8,7 @@
 
 
 from werkzeug.utils import secure_filename
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request,redirect,url_for
 import os
 from readmrz import MrzDetector, MrzReader
 from datetime import datetime
@@ -285,20 +285,24 @@ def compare_selfie():
             face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
             if not os.path.exists(face_file_path):
                 return render_template('comparison_result.html', error="Error: Face image not found.")
+
             selfie_image = face_recognition.load_image_file(selfie_path)
             selfie_encodings = face_recognition.face_encodings(selfie_image)
             if len(selfie_encodings) == 0:
                 return render_template('comparison_result.html', error="Error: No faces detected in the selfie.")
             selfie_encoding = selfie_encodings[0]
+
             face_image = face_recognition.load_image_file(face_file_path)
             face_encodings = face_recognition.face_encodings(face_image)
             if len(face_encodings) == 0:
                 return render_template('comparison_result.html', error="Error: No faces detected in the ID photo.")
             face_encoding = face_encodings[0]
+
             distance = np.linalg.norm(selfie_encoding - face_encoding)
             similarity_score = 1 - distance
             similarity_threshold = 0.6
             comparison_result = distance < similarity_threshold
+
             selfie.close()
             os.remove(selfie_path)
             return render_template('comparison_result.html', face_filename=face_filename,
@@ -309,9 +313,21 @@ def compare_selfie():
 
     return render_template('comparison_result.html', error="Error: Something went wrong.")
 
-@app.route('/liveness_detection', methods=['GET'])
+@app.route('/verify_selfie')
+def verify_selfie():
+    face_filename = request.args.get('face_filename')
+    if not face_filename:
+        return redirect(url_for('profile', error="Face filename not provided."))
+    return render_template('verify_selfie.html', face_filename=face_filename)
+
+
+@app.route('/liveness_detection')
 def liveness_detection():
+    """
+    Renders the page for liveness detection.
+    """
     return render_template('liveness_detection.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True)

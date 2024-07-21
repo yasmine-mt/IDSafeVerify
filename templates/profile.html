@@ -16,7 +16,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(to right, #00ff3e, #F5F5DC, #FFDEAD, #FFF8DC);
+            background: linear-gradient(to right, #E7B98A, #F5F5DC, #FFDEAD, #FFF8DC);
         }
 
         .content {
@@ -59,10 +59,9 @@
             margin-bottom: 10px;
         }
 
-        .back-button {
+        .btn {
             margin-top: 20px;
             padding: 10px 20px;
-            background-color: #4285F4;
             color: white;
             border: none;
             border-radius: 5px;
@@ -70,8 +69,20 @@
             text-decoration: none;
         }
 
-        .back-button:hover {
+        .btn-primary {
+            background-color: #4285F4;
+        }
+
+        .btn-primary:hover {
             background-color: #357ae8;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
         }
 
         @keyframes fadeIn {
@@ -104,20 +115,11 @@
             <p class="text-danger">{{ error }}</p>
         {% endif %}
         {% if face_filename %}
-            <form action="/compare_selfie" method="post" enctype="multipart/form-data">
-                <input type="file" name="selfie" accept="image/*" required>
-                <input type="hidden" name="face_filename" value="{{ face_filename }}">
-                <input type="submit" value="Compare Selfie">
-            </form>
-
-            <div>
-                {% if comparison_result %}
-                    <p>{{ comparison_result }}</p>
-                {% endif %}
-            </div>
+            <a href="{{ url_for('verify_selfie', face_filename=face_filename) }}" class="btn btn-primary">Verify by Selfie</a>
+            <a href="/liveness_detection" class="btn btn-secondary">Detect with Liveness</a>
         {% endif %}
         <hr>
-        <a href="/" class="btn back-button">Go Back Home</a>
+        <a href="/" class="btn btn-primary">Go Back Home</a>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
