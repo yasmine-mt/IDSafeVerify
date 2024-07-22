@@ -5,10 +5,10 @@
 #if its passport we upload just the front (To scan the mrz and retrieve the img)
 # else we upload the front(To retrieve the face) and the back (to scan the mrz)
 #i still have a problem with the upload front animations line
-
+#problem in verify by selfie +Button try again is not working + it takes time too much
 
 from werkzeug.utils import secure_filename
-from flask import Flask, render_template, request,redirect,url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 import os
 from readmrz import MrzDetector, MrzReader
 from datetime import datetime
@@ -263,61 +263,71 @@ def upload_front():
     mrz_data = eval(request.form.get('mrz_data'))
     return render_template('profile.html', face_filename=face_filename, mrz_data=mrz_data, error=None)
 
+
+
+
 @app.route('/compare_selfie', methods=['POST'])
 def compare_selfie():
     if 'selfie' not in request.files:
-        return render_template('comparison_result.html', error="Error: No file part.")
+        return jsonify(error="Error: No file part."), 400
 
-    selfie = request.files['selfie']
-    if selfie.filename == '':
-        return render_template('comparison_result.html', error="Error: No selected file.")
+    file = request.files.get('selfie')
+    if not file or file.filename == '':
+        return jsonify(error="Error: No selected file."), 400
 
-    if selfie:
-        try:
-            selfie_filename = secure_filename(selfie.filename)
-            selfie_path = os.path.join(app.config['UPLOAD_FOLDER'], selfie_filename)
-            selfie.save(selfie_path)
+    try:
+        # Save the uploaded file to the upload folder
+        selfie_filename = secure_filename(file.filename)
+        selfie_path = os.path.join(app.config['UPLOAD_FOLDER'], selfie_filename)
+        file.save(selfie_path)
 
-            face_filename = request.form.get('face_filename')
-            if not face_filename:
-                return render_template('comparison_result.html', error="Error: Face filename not provided.")
+        # Check if face filename is provided
+        face_filename = request.form.get('face_filename')
+        if not face_filename:
+            return jsonify(error="Error: Face filename not provided."), 400
 
-            face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
-            if not os.path.exists(face_file_path):
-                return render_template('comparison_result.html', error="Error: Face image not found.")
+        face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
+        if not os.path.exists(face_file_path):
+            return jsonify(error="Error: Face image not found."), 400
 
-            selfie_image = face_recognition.load_image_file(selfie_path)
-            selfie_encodings = face_recognition.face_encodings(selfie_image)
-            if len(selfie_encodings) == 0:
-                return render_template('comparison_result.html', error="Error: No faces detected in the selfie.")
-            selfie_encoding = selfie_encodings[0]
-
-            face_image = face_recognition.load_image_file(face_file_path)
-            face_encodings = face_recognition.face_encodings(face_image)
-            if len(face_encodings) == 0:
-                return render_template('comparison_result.html', error="Error: No faces detected in the ID photo.")
-            face_encoding = face_encodings[0]
-
-            distance = np.linalg.norm(selfie_encoding - face_encoding)
-            similarity_score = 1 - distance
-            similarity_threshold = 0.6
-            comparison_result = distance < similarity_threshold
-
-            selfie.close()
+        # Load and process the uploaded selfie
+        selfie_image = face_recognition.load_image_file(selfie_path)
+        selfie_encodings = face_recognition.face_encodings(selfie_image)
+        if len(selfie_encodings) == 0:
             os.remove(selfie_path)
-            return render_template('comparison_result.html', face_filename=face_filename,
-                                   comparison_result=comparison_result, similarity_score=similarity_score)
-        except Exception as e:
-            error = str(e)
-            return render_template('comparison_result.html', error=error)
+            return jsonify(error="Error: No faces detected in the selfie."), 400
 
-    return render_template('comparison_result.html', error="Error: Something went wrong.")
+        selfie_encoding = selfie_encodings[0]
+
+        # Load and process the ID photo
+        face_image = face_recognition.load_image_file(face_file_path)
+        face_encodings = face_recognition.face_encodings(face_image)
+        if len(face_encodings) == 0:
+            os.remove(selfie_path)
+            return jsonify(error="Error: No faces detected in the ID photo."), 400
+
+        face_encoding = face_encodings[0]
+
+        # Calculate similarity
+        distance = np.linalg.norm(selfie_encoding - face_encoding)
+        similarity_score = 1 - distance
+        similarity_threshold = 0.6
+        comparison_result = bool(distance < similarity_threshold)
+
+        # Delete the selfie after comparison
+        os.remove(selfie_path)
+
+        return render_template('comparison_result.html', comparison_result=comparison_result, similarity_score=similarity_score)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
 
 @app.route('/verify_selfie')
 def verify_selfie():
-    face_filename = request.args.get('face_filename')
-    if not face_filename:
-        return redirect(url_for('profile', error="Face filename not provided."))
+    face_filename = request.args.get('face_filename', default=None)
+    if face_filename is None:
+        return jsonify(error="Error: Face filename not provided."), 400
+
     return render_template('verify_selfie.html', face_filename=face_filename)
 
 
@@ -326,7 +336,7 @@ def liveness_detection():
     """
     Renders the page for liveness detection.
     """
-    return render_template('liveness_detection.html')
+    return render_template('liveness.html')
 
 
 if __name__ == '__main__':

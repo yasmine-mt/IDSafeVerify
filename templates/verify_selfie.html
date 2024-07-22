@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
     <title>Verify by Selfie</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -12,26 +13,167 @@
             align-items: center;
             min-height: 100vh;
             background: linear-gradient(to right, #E7B98A, #F5F5DC, #FFDEAD, #FFF8DC);
+            margin: 0;
+            font-family: Arial, sans-serif;
         }
 
         .content {
-            padding: 20px;
+            padding: 30px;
             background-color: #fff;
             text-align: center;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        #video {
+            display: none;
+            width: 100%;
             border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+
+        .btn-primary:hover {
+            background-color: #0069d9;
+            border-color: #0062cc;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+            border-color: #545b62;
+        }
+
+        .form-control {
+            margin-bottom: 20px;
+        }
+
+        .mt-3 {
+            margin-top: 20px;
+        }
+
+        h2 {
+            margin: 20px 0;
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        #webcamContainer {
+            display: none;
+            margin-top: 20px;
+        }
+
+        #webcamContainer video {
+            border: 2px solid #ddd;
+            border-radius: 10px;
         }
     </style>
 </head>
 <body>
     <div class="content">
         <h1>Verify by Selfie</h1>
-        <form action="/compare_selfie" method="post" enctype="multipart/form-data">
-            <input type="file" name="selfie" accept="image/*" required>
+        <form id="uploadForm" action="/compare_selfie" method="post" enctype="multipart/form-data">
+            <input type="file" name="selfie" accept="image/*" class="form-control">
             <input type="hidden" name="face_filename" value="{{ face_filename }}">
             <input type="submit" value="Compare Selfie" class="btn btn-primary">
         </form>
+        <h2>Or</h2>
+        <button id="startWebcam" class="btn btn-success">Use Webcam</button>
+        <div id="webcamContainer">
+            <video id="video" autoplay></video>
+            <button id="capture" class="btn btn-danger mt-3">Capture Photo</button>
+        </div>
         <a href="/" class="btn btn-secondary mt-3">Go Back Home</a>
     </div>
+
+    <script>
+        const startWebcamButton = document.getElementById('startWebcam');
+        const video = document.getElementById('video');
+        const captureButton = document.getElementById('capture');
+        const webcamContainer = document.getElementById('webcamContainer');
+        const uploadForm = document.getElementById('uploadForm');
+
+        startWebcamButton.addEventListener('click', () => {
+            webcamContainer.style.display = 'block';
+            startWebcamButton.style.display = 'none';
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                })
+                .catch(error => console.error('Error accessing webcam:', error));
+        });
+
+        captureButton.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                const file = new File([blob], 'webcam-selfie.jpg', { type: 'image/jpeg' });
+                const formData = new FormData();
+                formData.append('selfie', file);
+                formData.append('face_filename', '{{ face_filename }}');
+
+                fetch('/compare_selfie', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(html => {
+                    document.open();
+                    document.write(html);
+                    document.close();
+                })
+                .catch(error => console.error('Error uploading photo:', error));
+            }, 'image/jpeg');
+        });
+    </script>
 </body>
 </html>
