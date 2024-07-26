@@ -18,6 +18,7 @@
             animation: gradient 10s ease infinite;
             height: 100vh;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             color: #333;
@@ -47,7 +48,7 @@
             white-space: nowrap;
             overflow: hidden;
             border-right: 2px solid #4285F4;
-            animation: typing 8s steps(60, end), blink-caret 0.75s step-end infinite;
+            animation: typing 4s steps(60, end), blink-caret 0.75s step-end infinite;
         }
         .welcome-text h1.typing-finished {
             border-right: none;
@@ -90,6 +91,39 @@
                 border-color: transparent;
             }
         }
+        .services {
+            display: flex;
+            justify-content: center;
+            margin-top: 50px;
+        }
+        .service-card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            width: 250px;
+        }
+        .service-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        .service-card img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            margin-bottom: 20px;
+        }
+        .service-card h3 {
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+        .service-card p {
+            color: #666;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -100,12 +134,30 @@
             <br>
             <a href="/home" class="btn btn-primary btn-lg btn-start">Get Started</a>
         </div>
+
+        <div class="services">
+            <div class="service-card">
+                <img src="/static/uploads/mrz_icon.png" alt="MRZ Service">
+                <h3>Service MRZ</h3>
+                <p>Recognize and extract data from MRZ codes on identity documents.</p>
+            </div>
+            <div class="service-card">
+                <img src="/static/uploads/selfie_icon.jpg" alt="Selfie Service">
+                <h3>Selfie</h3>
+                <p>Capture and compare selfies to verify user identity.</p>
+            </div>
+            <div class="service-card">
+                <img src="/static/uploads/liveness_icon.png" alt="Liveness Service">
+                <h3>Liveness (Video)</h3>
+                <p>Perform liveness detection through video analysis.</p>
+            </div>
+        </div>
     </div>
 
     <script>
         const text = "Welcome to Identity Verification System";
         let index = 0;
-        const speed = 110;
+        const speed = 150;
         const typingText = document.getElementById("typing-text");
 
         function animateText() {
