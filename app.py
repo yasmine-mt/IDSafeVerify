@@ -7,6 +7,7 @@
 #i still have a problem with the upload front animations line
 #problem in verify by selfie +Button try again is not working + it takes time too much+wbcam not working
 #use MTCNN to draw the face on the video because this library is very slow
+
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, jsonify,Response
 import os
@@ -18,6 +19,7 @@ import dlib
 import cv2
 from imutils import face_utils
 import face_recognition
+import base64
 
 def asfarray(a, dtype=np.float64):
     """
@@ -332,43 +334,53 @@ def verify_selfie():
     return render_template('verify_selfie.html', face_filename=face_filename)
 
 
-
-@app.route('/liveness_detection', methods=['POST'])
+@app.route('/liveness_detection', methods=['GET', 'POST'])
 def liveness_detection():
-    """
-    Handles the liveness detection by processing the uploaded image,
-    detecting the face orientation, and drawing a circle around the detected face.
+    if request.method == 'POST':
+        captured_image_data = request.form.get('captured_image')
+        face_filename = request.form.get('face_filename')
 
-    Returns:
-        jsonify: A JSON response indicating the liveness detection result
-                 and the URL of the image with the circle drawn.
-    """
-    file = request.files.get('image')
-    if not file:
-        return jsonify(result="Error: No file uploaded."), 400
+        if not captured_image_data or not face_filename:
+            return jsonify(result="Error: Missing data."), 400
 
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
-    file.save(file_path)
+        # Decode the base64 image data
+        captured_image_data = captured_image_data.split(',')[1]
+        captured_image = base64.b64decode(captured_image_data)
+        captured_image_np = np.frombuffer(captured_image, dtype=np.uint8)
+        captured_image_np = cv2.imdecode(captured_image_np, cv2.IMREAD_COLOR)
 
-    image = cv2.imread(file_path)
-    message, face_coordinates = detect_face_orientation(image)
+        # Load the ID photo
+        face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
+        if not os.path.exists(face_file_path):
+            return jsonify(result="Error: Face image not found."), 400
+        face_image = face_recognition.load_image_file(face_file_path)
+        face_encodings = face_recognition.face_encodings(face_image)
+        if len(face_encodings) == 0:
+            return jsonify(result="Error: No faces detected in the ID photo."), 400
 
-    if face_coordinates:
-        center_x, center_y, radius = face_coordinates
-        cv2.circle(image, (center_x, center_y), radius, (0, 255, 0), 2)
+        face_encoding = face_encodings[0]
 
-    # Save the image with the circle drawn on it
-    output_filename = "output_" + secure_filename(file.filename)
-    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-    cv2.imwrite(output_path, image)
+        # Encode the captured image from webcam
+        captured_encodings = face_recognition.face_encodings(captured_image_np)
+        if len(captured_encodings) == 0:
+            return jsonify(result="Error: No faces detected in the captured image."), 400
 
-    os.remove(file_path)
+        captured_encoding = captured_encodings[0]
 
-    if message == "Face detected":
-        return jsonify(result="Face turned right!", image_url=f"/static/id_photos/{output_filename}")
+        # Compare the captured image with the ID photo
+        distance = np.linalg.norm(captured_encoding - face_encoding)
+        similarity_score = 1 - distance
+        similarity_threshold = 0.6
+        comparison_result = bool(distance < similarity_threshold)
+
+        return jsonify(result="Comparison successful" if comparison_result else "Comparison failed",
+                       similarity_score=similarity_score)
     else:
-        return jsonify(result="Please turn your face to the right.", image_url=f"/static/id_photos/{output_filename}"), 400
+        face_filename = request.args.get('face_filename', default=None)
+        if not face_filename:
+            return jsonify(error="Error: Face filename not provided."), 400
 
+        return render_template('liveness.html', face_filename=face_filename)
 
 
 @app.route('/liveness_detection')
@@ -379,7 +391,12 @@ def liveness_detection_page():
     Returns:
         render_template: The HTML template for the liveness detection page.
     """
-    return render_template('liveness.html')
+    face_filename = request.args.get('face_filename', default=None)
+    if not face_filename:
+        return jsonify(error="Error: Face filename not provided."), 400
+
+    return render_template('liveness.html', face_filename=face_filename)
+
 
 def detect_face_orientation(image):
     """
@@ -490,4 +507,3 @@ def smile_detection():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
