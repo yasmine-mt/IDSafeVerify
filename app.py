@@ -1,12 +1,8 @@
 #Transform index.html into a dynamic page with after scanning the back
 # and retrieving the info it demand to upload the front to retrieve only the photo
 #and display it  so after i will do another process with this photo
-#but it should been displayed in index.html
-#if its passport we upload just the front (To scan the mrz and retrieve the img)
-# else we upload the front(To retrieve the face) and the back (to scan the mrz)
-#i still have a problem with the upload front animations line
-#problem in verify by selfie +Button try again is not working + it takes time too much+wbcam not working
-#use MTCNN to draw the face on the video because this library is very slow
+
+#FACE RECOGNITION IN LIVENESS + Anti Spoofing (Try using deep face fir face compariosn in the liveness )
 
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, jsonify,Response
@@ -20,6 +16,7 @@ import cv2
 from imutils import face_utils
 import face_recognition
 import base64
+import random
 
 def asfarray(a, dtype=np.float64):
     """
@@ -36,7 +33,6 @@ detector = MrzDetector()
 reader = MrzReader()
 detector1 = dlib.get_frontal_face_detector()
 
-# Initialize the shape predictor
 predictor = dlib.shape_predictor('models/shape_predictor_68_face_landmarks.dat')
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
@@ -274,14 +270,8 @@ def upload_front():
     return render_template('profile.html', face_filename=face_filename, mrz_data=mrz_data, error=None)
 
 
-
-
 @app.route('/compare_selfie', methods=['POST'])
 def compare_selfie():
-    """
-    Compare Selfie to the photo on The ID Card
-    """
-
     if 'selfie' not in request.files:
         return jsonify(error="Error: No file part."), 400
 
@@ -293,6 +283,7 @@ def compare_selfie():
         selfie_filename = secure_filename(file.filename)
         selfie_path = os.path.join(app.config['UPLOAD_FOLDER'], selfie_filename)
         file.save(selfie_path)
+
         face_filename = request.form.get('face_filename')
         if not face_filename:
             return jsonify(error="Error: Face filename not provided."), 400
@@ -300,6 +291,7 @@ def compare_selfie():
         face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
         if not os.path.exists(face_file_path):
             return jsonify(error="Error: Face image not found."), 400
+
         selfie_image = face_recognition.load_image_file(selfie_path)
         selfie_encodings = face_recognition.face_encodings(selfie_image)
         if len(selfie_encodings) == 0:
@@ -320,7 +312,8 @@ def compare_selfie():
         comparison_result = bool(distance < similarity_threshold)
         os.remove(selfie_path)
 
-        return render_template('comparison_result.html', comparison_result=comparison_result, similarity_score=similarity_score)
+        return render_template('comparison_result.html', comparison_result=comparison_result,
+                               similarity_score=similarity_score)
     except Exception as e:
         return jsonify(error=str(e)), 500
 
@@ -333,177 +326,244 @@ def verify_selfie():
 
     return render_template('verify_selfie.html', face_filename=face_filename)
 
+#
+# @app.route('/liveness_detection', methods=['GET', 'POST'])
+# def liveness_detection():
+#     if request.method == 'POST':
+#         captured_image_data = request.form.get('captured_image')
+#         face_filename = request.form.get('face_filename')
+#
+#         if not captured_image_data or not face_filename:
+#             return jsonify(result="Error: Missing data."), 400
+#         captured_image_data = captured_image_data.split(',')[1]
+#         captured_image = base64.b64decode(captured_image_data)
+#         captured_image_np = np.frombuffer(captured_image, dtype=np.uint8)
+#         captured_image_np = cv2.imdecode(captured_image_np, cv2.IMREAD_COLOR)
+#
+#         face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
+#         if not os.path.exists(face_file_path):
+#             return jsonify(result="Error: Face image not found."), 400
+#         face_image = face_recognition.load_image_file(face_file_path)
+#         face_encodings = face_recognition.face_encodings(face_image)
+#         if len(face_encodings) == 0:
+#             return jsonify(result="Error: No faces detected in the ID photo."), 400
+#
+#         face_encoding = face_encodings[0]
+#         captured_encodings = face_recognition.face_encodings(captured_image_np)
+#         if len(captured_encodings) == 0:
+#             return jsonify(result="Error: No faces detected in the captured image."), 400
+#
+#         captured_encoding = captured_encodings[0]
+#         distance = np.linalg.norm(captured_encoding - face_encoding)
+#         similarity_score = 1 - distance
+#         similarity_threshold = 0.6
+#         comparison_result = bool(distance < similarity_threshold)
+#
+#         return jsonify(result="Comparison successful" if comparison_result else "Comparison failed",
+#                        similarity_score=similarity_score)
+#     else:
+#         face_filename = request.args.get('face_filename', default=None)
+#         if not face_filename:
+#             return jsonify(error="Error: Face filename not provided."), 400
+#
+#         return render_template('liveness.html', face_filename=face_filename)
+#
+#
+# @app.route('/liveness_detection')
+# def liveness_detection_page():
+#     """
+#     Renders the liveness detection page.
+#
+#     Returns:
+#         render_template: The HTML template for the liveness detection page.
+#     """
+#     face_filename = request.args.get('face_filename', default=None)
+#     if not face_filename:
+#         return jsonify(error="Error: Face filename not provided."), 400
+#
+#     return render_template('liveness.html', face_filename=face_filename)
+#
+# def detect_smile(frame):
+#     """
+#     Detects if the person is smiling in the given image using OpenCV's pre-trained Haar cascade.
+#
+#     Args:
+#         image (np.ndarray): The input image in which to detect the smile.
+#
+#     Returns:
+#         bool: True if a smile is detected, False otherwise.
+#     """
+#     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+#
+#     for (x, y, w, h) in faces:
+#         roi_gray = gray[y:y + h, x:x + w]
+#         smiles = smile_cascade.detectMultiScale(roi_gray, scaleFactor=1.8, minNeighbors=20, minSize=(25, 25))
+#         if len(smiles) > 0:
+#                 return True
+#         return False
+# @app.route('/check_smile', methods=['POST'])
+# def check_smile():
+#         """
+#         Handles smile detection by processing the uploaded image and checking for a smile.
+#
+#         Returns:
+#             jsonify: A JSON response indicating whether a smile was detected.
+#         """
+#         file = request.files.get('image')
+#         if not file:
+#             return jsonify(result="Error: No file uploaded."), 400
+#
+#         file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
+#         file.save(file_path)
+#
+#         image = cv2.imread(file_path)
+#         if image is None:
+#             os.remove(file_path)
+#             return jsonify(result="Error: Could not read image."), 400
+#
+#         smiling = detect_smile(image)
+#
+#         os.remove(file_path)
+#
+#         if smiling:
+#             return jsonify(result="Smile detected!")
+#         else:
+#             return jsonify(result="No smile detected."), 400
+#
+#
+# def generate_frames():
+#     cap = cv2.VideoCapture(0)
+#     while True:
+#         success, frame = cap.read()
+#         if not success:
+#             break
+#
+#         smile_detected = detect_smile(frame)
+#
+#         if smile_detected:
+#             cv2.putText(frame, 'Smile detected!', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+#         else:
+#             cv2.putText(frame, 'No smile detected.', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+#
+#         ret, buffer = cv2.imencode('.jpg', frame)
+#         frame = buffer.tobytes()
+#         yield (b'--frame\r\n'
+#                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+#
+#     cap.release()
+#
+# @app.route('/video_feed')
+# def video_feed():
+#     return Response(generate_frames(),
+#                     mimetype='multipart/x-mixed-replace; boundary=frame')
+#
+# @app.route('/smile_detection')
+# def smile_detection():
+#     return render_template('liveness.html')
 
-@app.route('/liveness_detection', methods=['GET', 'POST'])
-def liveness_detection():
-    if request.method == 'POST':
-        captured_image_data = request.form.get('captured_image')
-        face_filename = request.form.get('face_filename')
+actions = ["Smile", "Turn right", "Turn left", "Look up", "Look down"]
 
-        if not captured_image_data or not face_filename:
-            return jsonify(result="Error: Missing data."), 400
+def get_random_actions(n=3):
+    return random.sample(actions, n)
 
-        # Decode the base64 image data
-        captured_image_data = captured_image_data.split(',')[1]
-        captured_image = base64.b64decode(captured_image_data)
-        captured_image_np = np.frombuffer(captured_image, dtype=np.uint8)
-        captured_image_np = cv2.imdecode(captured_image_np, cv2.IMREAD_COLOR)
+@app.route('/initiate_liveness', methods=['GET'])
+def initiate_liveness():
+    selected_actions = get_random_actions()
+    return jsonify({"actions": selected_actions})
 
-        # Load the ID photo
-        face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
-        if not os.path.exists(face_file_path):
-            return jsonify(result="Error: Face image not found."), 400
-        face_image = face_recognition.load_image_file(face_file_path)
-        face_encodings = face_recognition.face_encodings(face_image)
-        if len(face_encodings) == 0:
-            return jsonify(result="Error: No faces detected in the ID photo."), 400
+def process_image(image_data, action):
+    # Decode the image
+    image_data = base64.b64decode(image_data.split(',')[1])
+    np_arr = np.frombuffer(image_data, np.uint8)
+    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-        face_encoding = face_encodings[0]
+    # Detect landmarks
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    rects = detector1(gray, 1)
+    landmarks = []
+    for rect in rects:
+        shape = predictor(gray, rect)
+        shape = face_utils.shape_to_np(shape)
+        landmarks.append(shape)
 
-        # Encode the captured image from webcam
-        captured_encodings = face_recognition.face_encodings(captured_image_np)
-        if len(captured_encodings) == 0:
-            return jsonify(result="Error: No faces detected in the captured image."), 400
+    action_result = analyze_actions(landmarks, action, frame)
+    return action_result
 
-        captured_encoding = captured_encodings[0]
+def analyze_actions(landmarks, action, frame):
+    if not landmarks:
+        return f"{action} not detected"
 
-        # Compare the captured image with the ID photo
-        distance = np.linalg.norm(captured_encoding - face_encoding)
-        similarity_score = 1 - distance
-        similarity_threshold = 0.6
-        comparison_result = bool(distance < similarity_threshold)
+    for shape in landmarks:
+        if action == "Smile":
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (5, 5), 0)
+            gray = cv2.equalizeHist(gray)
+            smiles = smile_cascade.detectMultiScale(gray, scaleFactor=1.8, minNeighbors=35, minSize=(25, 25), flags=cv2.CASCADE_SCALE_IMAGE)
+            mouth = shape[48:60]
+            mouth_width = np.linalg.norm(mouth[0] - mouth[6])
+            smile_threshold = 30
+            if len(smiles) > 0 and mouth_width > smile_threshold:
+                return "Smiling detected"
+            else:
+                return "Smile not detected"
 
-        return jsonify(result="Comparison successful" if comparison_result else "Comparison failed",
-                       similarity_score=similarity_score)
-    else:
-        face_filename = request.args.get('face_filename', default=None)
-        if not face_filename:
-            return jsonify(error="Error: Face filename not provided."), 400
+        elif action in ["Turn right", "Turn left"]:
+            image_points = np.array([shape[30], shape[8], shape[36], shape[45], shape[48], shape[54]], dtype="double")
+            model_points = np.array([(0.0, 0.0, 0.0), (0.0, -330.0, -65.0), (-225.0, 170.0, -135.0), (225.0, 170.0, -135.0), (-150.0, -150.0, -125.0), (150.0, -150.0, -125.0)])
+            size = frame.shape
+            focal_length = size[1]
+            center = (size[1] // 2, size[0] // 2)
+            camera_matrix = np.array([[focal_length, 0, center[0]], [0, focal_length, center[1]], [0, 0, 1]], dtype="double")
+            dist_coeffs = np.zeros((4, 1))
+            success, rotation_vector, translation_vector = cv2.solvePnP(model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
+            if not success:
+                return "Pose estimation failed"
+            rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+            pose_matrix = cv2.hconcat((rotation_matrix, translation_vector))
+            _, _, _, _, _, _, eulerAngles = cv2.decomposeProjectionMatrix(pose_matrix)
+            yaw = eulerAngles[1, 0]
+            turn_threshold = 15
+            if action == "Turn left" and yaw < -turn_threshold:
+                return "Turn left detected"
+            if action == "Turn right" and yaw > turn_threshold:
+                return "Turn right detected"
 
-        return render_template('liveness.html', face_filename=face_filename)
+        elif action in ["Look up", "Look down"]:
+            image_points = np.array([shape[30], shape[8], shape[36], shape[45], shape[48], shape[54]], dtype="double")
+            model_points = np.array([(0.0, 0.0, 0.0), (0.0, -330.0, -65.0), (-225.0, 170.0, -135.0), (225.0, 170.0, -135.0), (-150.0, -150.0, -125.0), (150.0, -150.0, -125.0)])
+            size = frame.shape
+            focal_length = size[1]
+            center = (size[1] // 2, size[0] // 2)
+            camera_matrix = np.array([[focal_length, 0, center[0]], [0, focal_length, center[1]], [0, 0, 1]], dtype="double")
+            dist_coeffs = np.zeros((4, 1))
+            success, rotation_vector, translation_vector = cv2.solvePnP(model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
+            if not success:
+                return "Pose estimation failed"
+            rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+            pose_matrix = cv2.hconcat((rotation_matrix, translation_vector))
+            _, _, _, _, _, _, eulerAngles = cv2.decomposeProjectionMatrix(pose_matrix)
+            pitch = eulerAngles[0, 0]
+            look_threshold = 15
+            if action == "Look up" and pitch > look_threshold:
+                return "Look up detected"
+            if action == "Look down" and pitch < -look_threshold:
+                return "Look down detected"
 
+    return f"{action} not detected"
+
+@app.route('/process_frame', methods=['POST'])
+def process_frame():
+    data = request.json
+    image_data = data['image']
+    action = data['action']
+    result = process_image(image_data, action)
+    return jsonify({"result": result})
 
 @app.route('/liveness_detection')
-def liveness_detection_page():
-    """
-    Renders the liveness detection page.
+def liveness_detection():
+    return render_template('liveness_Test.html')
 
-    Returns:
-        render_template: The HTML template for the liveness detection page.
-    """
-    face_filename = request.args.get('face_filename', default=None)
-    if not face_filename:
-        return jsonify(error="Error: Face filename not provided."), 400
-
-    return render_template('liveness.html', face_filename=face_filename)
-
-
-def detect_face_orientation(image):
-    """
-    Detects the orientation of the face in the given image and returns
-    the coordinates of the face center and radius of the circle to be drawn.
-
-    Args:
-        image (np.ndarray): The input image in which to detect the face.
-
-    Returns:
-        tuple: A message indicating whether the face is detected,
-               and the coordinates (center_x, center_y, radius) of the detected face.
-    """
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    faces = detector1(gray)
-    if len(faces) == 0:
-        return "No face detected", None
-
-    face = faces[0]
-    shape = predictor(gray, face)
-    shape = face_utils.shape_to_np(shape)
-    (x, y, w, h) = face.left(), face.top(), face.width(), face.height()
-    center_x, center_y = x + w // 2, y + h // 2
-    radius = max(w, h) // 2
-
-    # Assume face is oriented correctly if detected
-    return "Face detected", (center_x, center_y, radius)
-
-def detect_smile(frame):
-    """
-    Detects if the person is smiling in the given image using OpenCV's pre-trained Haar cascade.
-
-    Args:
-        image (np.ndarray): The input image in which to detect the smile.
-
-    Returns:
-        bool: True if a smile is detected, False otherwise.
-    """
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-
-    for (x, y, w, h) in faces:
-        roi_gray = gray[y:y + h, x:x + w]
-        smiles = smile_cascade.detectMultiScale(roi_gray, scaleFactor=1.8, minNeighbors=20, minSize=(25, 25))
-        if len(smiles) > 0:
-                return True
-        return False
-@app.route('/check_smile', methods=['POST'])
-def check_smile():
-        """
-        Handles smile detection by processing the uploaded image and checking for a smile.
-
-        Returns:
-            jsonify: A JSON response indicating whether a smile was detected.
-        """
-        file = request.files.get('image')
-        if not file:
-            return jsonify(result="Error: No file uploaded."), 400
-
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
-        file.save(file_path)
-
-        image = cv2.imread(file_path)
-        if image is None:
-            os.remove(file_path)
-            return jsonify(result="Error: Could not read image."), 400
-
-        smiling = detect_smile(image)
-
-        os.remove(file_path)
-
-        if smiling:
-            return jsonify(result="Smile detected!")
-        else:
-            return jsonify(result="No smile detected."), 400
-
-
-def generate_frames():
-    cap = cv2.VideoCapture(0)  # 0 is the default camera
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
-
-        smile_detected = detect_smile(frame)
-
-        # Draw rectangle around detected faces
-        if smile_detected:
-            cv2.putText(frame, 'Smile detected!', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        else:
-            cv2.putText(frame, 'No smile detected.', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
-        ret, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-    cap.release()
-
-@app.route('/video_feed')
-def video_feed():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/smile_detection')
-def smile_detection():
-    return render_template('liveness.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

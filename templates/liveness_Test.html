@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Liveness Detection</title>
+    <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #4e54c8, #8f94fb);
+            color: #fff;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            margin-top: 20px;
+            font-size: 2.5em;
+        }
+        #instructions {
+            margin: 20px 0;
+            font-size: 1.5em;
+        }
+        #video-container {
+            position: relative;
+            display: inline-block;
+        }
+        #video {
+            width: 640px;
+            height: 480px;
+            border: 5px solid #fff;
+            border-radius: 10px;
+        }
+        #indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2em;
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        .arrow {
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        .arrow-right {
+            border-top: 20px solid transparent;
+            border-bottom: 20px solid transparent;
+            border-left: 20px solid #fff;
+            left: 80%;
+        }
+        .arrow-left {
+            border-top: 20px solid transparent;
+            border-bottom: 20px solid transparent;
+            border-right: 20px solid #fff;
+            left: 20%;
+        }
+        .arrow-up {
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 20px solid #fff;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(90deg);
+        }
+        .arrow-down {
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 20px solid #fff;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(90deg);
+        }
+        .smile {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 5px solid #fff;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        .smile:before {
+            content: '😊';
+            font-size: 1.5em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Liveness Detection</h1>
+    <div id="instructions">Loading...</div>
+    <div id="video-container">
+        <video id="video" width="640" height="480" autoplay></video>
+        <div id="indicator"></div>
+        <div class="arrow arrow-right" id="arrow-right"></div>
+        <div class="arrow arrow-left" id="arrow-left"></div>
+        <div class="arrow arrow-up" id="arrow-up"></div>
+        <div class="arrow arrow-down" id="arrow-down"></div>
+        <div class="smile" id="smile"></div>
+    </div>
+    <script>
+        const video = document.getElementById('video');
+        const instructions = document.getElementById('instructions');
+        const arrowRight = document.getElementById('arrow-right');
+        const arrowLeft = document.getElementById('arrow-left');
+        const arrowUp = document.getElementById('arrow-up');
+        const arrowDown = document.getElementById('arrow-down');
+        const smile = document.getElementById('smile');
+        let currentActionIndex = 0;
+        let actions = [];
+        let actionResults = [];
+
+        fetch('/initiate_liveness')
+            .then(response => response.json())
+            .then(data => {
+                actions = data.actions;
+                instructions.textContent = `Please perform the following actions: ${actions.join(', ')}`;
+                startProcessing();
+            });
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => console.error('Error accessing webcam: ' + err));
+
+        function captureFrame() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            return canvas.toDataURL('image/jpeg');
+        }
+
+        function startProcessing() {
+            if (currentActionIndex < actions.length) {
+                const action = actions[currentActionIndex];
+                instructions.textContent = `Please ${action}`;
+                showIndicator(action);
+                setTimeout(() => {
+                    const image = captureFrame();
+                    fetch('/process_frame', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            image: image,
+                            action: action
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log(data.result);
+                            actionResults.push(data.result);
+                            currentActionIndex++;
+                            startProcessing();
+                        })
+                        .catch(err => console.error('Error processing frame: ' + err));
+                }, 5000);
+            } else {
+                checkLiveness();
+            }
+        }
+
+        function checkLiveness() {
+            hideAllIndicators();
+            if (actionResults.every(result => result === "success")) {
+                instructions.textContent = "Liveness check completed";
+            } else {
+                instructions.textContent = "Liveness check failed";
+            }
+        }
+
+        function showIndicator(action) {
+            hideAllIndicators();
+            if (action === "Turn right") {
+                arrowRight.style.opacity = 1;
+                arrowRight.style.transform = 'translateY(-50%) translateX(10px)';
+            } else if (action === "Turn left") {
+                arrowLeft.style.opacity = 1;
+                arrowLeft.style.transform = 'translateY(-50%) translateX(-10px)';
+            } else if (action === "Smile") {
+                smile.style.opacity = 1;
+                smile.style.transform = 'translate(-50%, -50%) scale(1.2)';
+            } else if (action === "Look up") {
+                arrowUp.style.opacity = 1;
+                arrowUp.style.transform = 'translate(-50%, -50%) scale(1.2)';
+            } else if (action === "Look down") {
+                arrowDown.style.opacity = 1;
+                arrowDown.style.transform = 'translate(-50%, -50%) scale(1.2)';
+            }
+        }
+
+        function hideAllIndicators() {
+            arrowRight.style.opacity = 0;
+            arrowLeft.style.opacity = 0;
+            smile.style.opacity = 0;
+            arrowUp.style.opacity = 0;
+            arrowDown.style.opacity = 0;
+            arrowRight.style.transform = 'translateY(-50%)';
+            arrowLeft.style.transform = 'translateY(-50%)';
+            smile.style.transform = 'translate(-50%, -50%)';
+            arrowUp.style.transform = 'translate(-50%, -50%)';
+            arrowDown.style.transform = 'translate(-50%, -50%)';
+        }
+    </script>
+</body>
+</html>
