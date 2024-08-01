@@ -51,13 +51,13 @@
             opacity: 0;
             transition: opacity 0.5s, transform 0.5s;
         }
-        .arrow-right {
+        .arrow-left {
             border-top: 20px solid transparent;
             border-bottom: 20px solid transparent;
             border-left: 20px solid #fff;
             left: 80%;
         }
-        .arrow-left {
+        .arrow-right {
             border-top: 20px solid transparent;
             border-bottom: 20px solid transparent;
             border-right: 20px solid #fff;
@@ -107,6 +107,7 @@
         <div class="arrow arrow-down" id="arrow-down"></div>
         <div class="smile" id="smile"></div>
     </div>
+    <input type="hidden" id="faceFilename" value="{{ face_filename }}">
     <script>
         const video = document.getElementById('video');
         const instructions = document.getElementById('instructions');
@@ -115,6 +116,7 @@
         const arrowUp = document.getElementById('arrow-up');
         const arrowDown = document.getElementById('arrow-down');
         const smile = document.getElementById('smile');
+        const faceFilename = document.getElementById('faceFilename').value;
         let currentActionIndex = 0;
         let actions = [];
         let actionResults = [];
@@ -155,7 +157,8 @@
                         },
                         body: JSON.stringify({
                             image: image,
-                            action: action
+                            action: action,
+                            face_filename: faceFilename
                         })
                     })
                         .then(response => response.json())
@@ -174,10 +177,10 @@
 
         function checkLiveness() {
             hideAllIndicators();
-            if (actionResults.every(result => result === "success")) {
-                instructions.textContent = "Liveness check completed";
+            if (actionResults.every(result => result === "success and same person as ID")) {
+                instructions.textContent = "Liveness check completed successfully. You are verified.";
             } else {
-                instructions.textContent = "Liveness check failed";
+                instructions.textContent = "Liveness check failed. Verification unsuccessful.";
             }
         }
 

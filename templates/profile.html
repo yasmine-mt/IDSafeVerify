@@ -116,7 +116,7 @@
         {% endif %}
         {% if face_filename %}
             <a href="{{ url_for('verify_selfie', face_filename=face_filename) }}" class="btn btn-primary">Verify by Selfie</a>
-            <a href="{{ url_for('liveness_detection') }}" class="btn btn-secondary">Detect with Liveness</a>
+            <a href="{{ url_for('liveness_detection',face_filename=face_filename) }}" class="btn btn-secondary">Detect with Liveness</a>
         {% endif %}
         <hr>
         <a href="/" class="btn btn-primary">Go Back Home</a>
