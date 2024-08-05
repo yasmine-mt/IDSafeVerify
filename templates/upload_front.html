@@ -188,9 +188,22 @@
             border: 0;
             transition: all .2s ease;
         }
+        .logo {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+        .logo img {
+            width: 80px;
+            height: auto;
+        }
     </style>
 </head>
 <body>
+ <div class="logo">
+        <img src="/static/logo.png" alt="Company Logo">
+    </div>
 <div class="bg-animation">
     <div class="file-upload">
         <h1>Télécharger le recto de la carte d'identité</h1>

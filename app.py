@@ -114,7 +114,7 @@ def normalize_sex(sex):
 @app.route('/')
 def Home():
     """
-    Renders the index page.
+    Renders the home page.
     """
     return render_template('Page_Accueil.html', error=None)
 
@@ -493,6 +493,7 @@ def process_frame():
 
     return jsonify({"result": result, "similarity_score": similarity_score})
 
+
 @app.route('/liveness_detection')
 def liveness_detection():
     """
@@ -501,6 +502,15 @@ def liveness_detection():
     """
     face_filename = request.args.get('face_filename', default=None)
     return render_template('liveness_Test.html', face_filename=face_filename)
+
+
+@app.route('/success')
+def success():
+    """
+    Render the success page after successful liveness detection.
+    :return: HTML template for success
+    """
+    return render_template('success.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

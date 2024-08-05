@@ -109,6 +109,16 @@
             border: 2px solid #ddd;
             border-radius: 10px;
         }
+        .logo {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+        .logo img {
+            width: 80px;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -126,6 +136,9 @@
             <button id="capture" class="btn btn-danger mt-3">Capturer la Photo</button>
         </div>
         <a href="/" class="btn btn-secondary mt-3">Retour à l'accueil</a>
+    </div>
+     <div class="logo">
+        <img src="/static/logo.png" alt="Company Logo">
     </div>
 
     <script>

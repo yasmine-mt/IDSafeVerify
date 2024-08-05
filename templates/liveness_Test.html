@@ -13,6 +13,16 @@
             margin: 0;
             padding: 0;
         }
+         .logo {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+        .logo img {
+            width: 80px;
+            height: auto;
+        }
         h1 {
             margin-top: 20px;
             font-size: 2.5em;
@@ -107,6 +117,9 @@
     </style>
 </head>
 <body>
+<div class="logo">
+        <img src="/static/logo.png" alt="Company Logo">
+    </div>
     <h1>Détection de Vivacité</h1>
     <div id="instructions">Chargement...</div>
     <div id="video-container">
@@ -192,6 +205,7 @@
         let allSamePerson = actionResults.every(result => result.includes("même personne que l'ID"));
 
         if (allActionsDetected && allSamePerson) {
+            window.location.href = "/success";
             instructions.textContent = "Détection de vivacité réussie. Vous êtes vérifié.";
         } else if (allActionsDetected && !allSamePerson) {
             instructions.textContent = "Détection de vivacité réussie. Ce n'est pas la même personne.";
