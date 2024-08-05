@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
-    <title>User Result</title>
+    <title>Résultat de la vérification </title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -78,19 +78,19 @@
 
 <body>
     <div class="container">
-        <h1>Face Comparison Result</h1>
+        <h1>Résultat de la Comparaison de Visages</h1>
         {% if error %}
         <p class="text-danger mt-3">{{ error }}</p>
         {% else %}
             {% if comparison_result %}
-            <p class="text-success mt-3">Identity verified successfully!</p>
-            <p class="font-weight-bold">Similarity Score: {{ similarity_score * 100 | round(2) }}%</p>
+            <p class="text-success mt-3">Identité vérifiée avec succès !</p>
+            <p class="font-weight-bold">Score de Similarité : {{ similarity_score * 100 | round(2) }}%</p>
             {% else %}
-            <p class="text-danger mt-3">Identity verification failed!</p>
-            <p class="font-weight-bold">Similarity Score: {{ similarity_score * 100 | round(2) }}%</p>
+            <p class="text-danger mt-3">Échec de la vérification de l'identité !</p>
+            <p class="font-weight-bold">Score de Similarité : {{ similarity_score * 100 | round(2) }}%</p>
             {% endif %}
         {% endif %}
-        <a href="/" class="btn btn-primary btn-lg btn-block mt-4">Back to Home</a>
+        <a href="/" class="btn btn-primary btn-lg btn-block mt-4">Retour à l'Accueil</a>
     </div>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>

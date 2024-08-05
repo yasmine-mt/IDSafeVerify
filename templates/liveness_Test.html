@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Liveness Detection</title>
+    <title>Détection de Vivacité</title>
     <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
     <style>
         body {
@@ -24,83 +24,93 @@
         #video-container {
             position: relative;
             display: inline-block;
-        }
-        #video {
             width: 640px;
             height: 480px;
+        }
+        #video {
+            width: 100%;
+            height: 100%;
             border: 5px solid #fff;
             border-radius: 10px;
         }
-        #indicator {
+        .arrow, .smile {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 2em;
-            opacity: 0;
             transition: opacity 0.5s, transform 0.5s;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
         }
+
         .arrow {
             width: 0;
             height: 0;
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            opacity: 0;
-            transition: opacity 0.5s, transform 0.5s;
-        }
+            border: 30px solid transparent;     }
+
         .arrow-left {
-            border-top: 20px solid transparent;
-            border-bottom: 20px solid transparent;
-            border-left: 20px solid #fff;
-            left: 80%;
+            border-left-color: #fff;
+            top: 50%;
+            left: 25%;
+            transform: translate(-50%, -50%) rotate(0deg);
         }
+
         .arrow-right {
-            border-top: 20px solid transparent;
-            border-bottom: 20px solid transparent;
-            border-right: 20px solid #fff;
-            left: 20%;
+            border-right-color: #fff;
+            top: 50%;
+            right: 25%;
+            transform: translate(50%, -50%) rotate(0deg);
         }
+
         .arrow-up {
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            border-bottom: 20px solid #fff;
+            border-bottom-color: #fff;
+            top: 25%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(90deg);
+            transform: translate(-50%, -50%) rotate(0deg);
         }
+
         .arrow-down {
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            border-top: 20px solid #fff;
+            border-top-color: #fff;
+            bottom: 25%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(90deg);
+            transform: translate(-50%, 50%) rotate(0deg);
         }
+
         .smile {
-            width: 40px;
-            height: 40px;
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
             border: 5px solid #fff;
-            position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            opacity: 0;
-            transition: opacity 0.5s, transform 0.5s;
+            transform: translate(-50%, -50%) scale(1.2);
         }
+
         .smile:before {
             content: '😊';
+            font-size: 2em;
+        }
+
+
+        #try-again {
+            display: none;
+            margin-top: 20px;
+            padding: 10px 20px;
             font-size: 1.5em;
+            color: #fff;
+            background-color: #4e54c8;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #try-again:hover {
+            background-color: #3b3db1;
         }
     </style>
 </head>
 <body>
-    <h1>Liveness Detection</h1>
-    <div id="instructions">Loading...</div>
+    <h1>Détection de Vivacité</h1>
+    <div id="instructions">Chargement...</div>
     <div id="video-container">
         <video id="video" width="640" height="480" autoplay></video>
-        <div id="indicator"></div>
         <div class="arrow arrow-right" id="arrow-right"></div>
         <div class="arrow arrow-left" id="arrow-left"></div>
         <div class="arrow arrow-up" id="arrow-up"></div>
@@ -108,6 +118,9 @@
         <div class="smile" id="smile"></div>
     </div>
     <input type="hidden" id="faceFilename" value="{{ face_filename }}">
+    <audio id="beep" src="/static/beep.mp3" preload="auto"></audio>
+    <hr>
+    <button id="try-again" onclick="restartLiveness()">Réessayer</button>
     <script>
         const video = document.getElementById('video');
         const instructions = document.getElementById('instructions');
@@ -117,24 +130,23 @@
         const arrowDown = document.getElementById('arrow-down');
         const smile = document.getElementById('smile');
         const faceFilename = document.getElementById('faceFilename').value;
+        const beep = document.getElementById('beep');
+        const tryAgainButton = document.getElementById('try-again');
         let currentActionIndex = 0;
         let actions = [];
         let actionResults = [];
-
         fetch('/initiate_liveness')
             .then(response => response.json())
             .then(data => {
                 actions = data.actions;
-                instructions.textContent = `Please perform the following actions: ${actions.join(', ')}`;
+                instructions.textContent = `Veuillez effectuer les actions suivantes : ${actions.join(', ')}`;
                 startProcessing();
             });
-
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => {
                 video.srcObject = stream;
             })
-            .catch(err => console.error('Error accessing webcam: ' + err));
-
+            .catch(err => console.error('Erreur d\'accès à la webcam : ' + err));
         function captureFrame() {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
@@ -142,11 +154,11 @@
             canvas.getContext('2d').drawImage(video, 0, 0);
             return canvas.toDataURL('image/jpeg');
         }
-
         function startProcessing() {
             if (currentActionIndex < actions.length) {
                 const action = actions[currentActionIndex];
-                instructions.textContent = `Please ${action}`;
+                beep.play();
+                instructions.textContent = `Veuillez ${action}`;
                 showIndicator(action);
                 setTimeout(() => {
                     const image = captureFrame();
@@ -163,58 +175,74 @@
                     })
                         .then(response => response.json())
                         .then(data => {
-                            console.log(data.result);
+                            console.log("Server response:", data.result);
                             actionResults.push(data.result);
                             currentActionIndex++;
                             startProcessing();
                         })
-                        .catch(err => console.error('Error processing frame: ' + err));
+                        .catch(err => console.error('Erreur lors du traitement de l\'image : ' + err));
                 }, 5000);
             } else {
                 checkLiveness();
             }
         }
+       function checkLiveness() {
+        hideAllIndicators();
+        let allActionsDetected = actionResults.every(result => result.includes("détecté"));
+        let allSamePerson = actionResults.every(result => result.includes("même personne que l'ID"));
 
-        function checkLiveness() {
-            hideAllIndicators();
-            if (actionResults.every(result => result === "success and same person as ID")) {
-                instructions.textContent = "Liveness check completed successfully. You are verified.";
-            } else {
-                instructions.textContent = "Liveness check failed. Verification unsuccessful.";
+        if (allActionsDetected && allSamePerson) {
+            instructions.textContent = "Détection de vivacité réussie. Vous êtes vérifié.";
+        } else if (allActionsDetected && !allSamePerson) {
+            instructions.textContent = "Détection de vivacité réussie. Ce n'est pas la même personne.";
+        } else {
+            let undetectedActions = [];
+            for (let i = 0; i < actions.length; i++) {
+                if (!actionResults[i].includes("détecté")) {
+                    undetectedActions.push(actions[i]);
+                } else if (!actionResults[i].includes("même personne que l'ID")) {
+                    undetectedActions.push(actions[i] + " (pas la même personne)");
+                }
             }
+            instructions.textContent = `Échec de la détection de vivacité. Actions incorrectes ou non détectées : ${undetectedActions.join(', ')}`;
         }
+        tryAgainButton.style.display = "inline-block";
+    }
+
+
 
         function showIndicator(action) {
             hideAllIndicators();
-            if (action === "Turn right") {
+            if (action === "Tournez à droite") {
                 arrowRight.style.opacity = 1;
-                arrowRight.style.transform = 'translateY(-50%) translateX(10px)';
-            } else if (action === "Turn left") {
+                arrowRight.style.transform = 'translate(50%, -50%) rotate(0deg)';
+            } else if (action === "Tournez à gauche") {
                 arrowLeft.style.opacity = 1;
-                arrowLeft.style.transform = 'translateY(-50%) translateX(-10px)';
-            } else if (action === "Smile") {
+                arrowLeft.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+            } else if (action === "Souriez") {
                 smile.style.opacity = 1;
                 smile.style.transform = 'translate(-50%, -50%) scale(1.2)';
-            } else if (action === "Look up") {
+            } else if (action === "Levez les yeux") {
                 arrowUp.style.opacity = 1;
                 arrowUp.style.transform = 'translate(-50%, -50%) scale(1.2)';
-            } else if (action === "Look down") {
+            } else if (action === "Baissez les yeux") {
                 arrowDown.style.opacity = 1;
-                arrowDown.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                arrowDown.style.transform = 'translate(-50%, 50%) scale(1.2)';
             }
         }
-
         function hideAllIndicators() {
             arrowRight.style.opacity = 0;
             arrowLeft.style.opacity = 0;
             smile.style.opacity = 0;
             arrowUp.style.opacity = 0;
             arrowDown.style.opacity = 0;
-            arrowRight.style.transform = 'translateY(-50%)';
-            arrowLeft.style.transform = 'translateY(-50%)';
-            smile.style.transform = 'translate(-50%, -50%)';
-            arrowUp.style.transform = 'translate(-50%, -50%)';
-            arrowDown.style.transform = 'translate(-50%, -50%)';
+        }
+        function restartLiveness() {
+            currentActionIndex = 0;
+            actionResults = [];
+            tryAgainButton.style.display = "none";
+            instructions.textContent = "Chargement...";
+            startProcessing();
         }
     </script>
 </body>

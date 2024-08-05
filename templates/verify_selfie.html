@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
-    <title>Verify by Selfie</title>
+    <title>Vérification par Selfie</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -113,19 +113,19 @@
 </head>
 <body>
     <div class="content">
-        <h1>Verify by Selfie</h1>
+        <h1>Vérification par Selfie</h1>
         <form id="uploadForm" action="/compare_selfie" method="post" enctype="multipart/form-data">
             <input type="file" name="selfie" accept="image/*" class="form-control">
             <input type="hidden" name="face_filename" value="{{ face_filename }}">
-            <input type="submit" value="Compare Selfie" class="btn btn-primary">
+            <input type="submit" value="Comparer le Selfie" class="btn btn-primary">
         </form>
-        <h2>Or</h2>
-        <button id="startWebcam" class="btn btn-success">Use Webcam</button>
+        <h2>Ou</h2>
+        <button id="startWebcam" class="btn btn-success">Utiliser la Webcam</button>
         <div id="webcamContainer">
             <video id="video" autoplay></video>
-            <button id="capture" class="btn btn-danger mt-3">Capture Photo</button>
+            <button id="capture" class="btn btn-danger mt-3">Capturer la Photo</button>
         </div>
-        <a href="/" class="btn btn-secondary mt-3">Go Back Home</a>
+        <a href="/" class="btn btn-secondary mt-3">Retour à l'accueil</a>
     </div>
 
     <script>
@@ -143,7 +143,7 @@
                     video.srcObject = stream;
                     video.style.display = 'block';
                 })
-                .catch(error => console.error('Error accessing webcam:', error));
+                .catch(error => console.error('Erreur d\'accès à la webcam:', error));
         });
 
         captureButton.addEventListener('click', () => {
@@ -169,7 +169,7 @@
                     document.write(html);
                     document.close();
                 })
-                .catch(error => console.error('Error uploading photo:', error));
+                .catch(error => console.error('Erreur de téléchargement de la photo:', error));
             }, 'image/jpeg');
         });
     </script>

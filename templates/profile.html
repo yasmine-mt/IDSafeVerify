@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
-    <title>User Profile</title>
+    <title>Info Récupérée</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -92,34 +92,34 @@
     </style>
 </head>
 <body>
-    <div class="content">
+      <div class="content">
         <div class="profile-photo">
             {% if face_filename %}
-                <img src="{{ url_for('static', filename='id_photos/' ~ face_filename) }}" alt="Profile Photo">
+                <img src="{{ url_for('static', filename='id_photos/' ~ face_filename) }}" alt="Photo de Profil">
             {% else %}
-                <p>No profile photo available.</p>
+                <p>Aucune photo de profil disponible.</p>
             {% endif %}
         </div>
-        <h1>User Profile</h1>
+        <h1>Info Récupérée</h1>
 
-        {% if mrz_data %}
+          {% if mrz_data %}
             <ul class="list-group list-group-flush">
                 {% for key, value in mrz_data.items() %}
                     <li class="list-group-item"><strong>{{ key }}</strong>: {{ value }}</li>
                 {% endfor %}
             </ul>
         {% else %}
-            <p>No MRZ data found.</p>
+            <p>Aucune donnée MRZ trouvée.</p>
         {% endif %}
         {% if error %}
             <p class="text-danger">{{ error }}</p>
         {% endif %}
         {% if face_filename %}
-            <a href="{{ url_for('verify_selfie', face_filename=face_filename) }}" class="btn btn-primary">Verify by Selfie</a>
-            <a href="{{ url_for('liveness_detection',face_filename=face_filename) }}" class="btn btn-secondary">Detect with Liveness</a>
+            <a href="{{ url_for('verify_selfie', face_filename=face_filename) }}" class="btn btn-primary">Vérifier par Selfie</a>
+            <a href="{{ url_for('liveness_detection', face_filename=face_filename) }}" class="btn btn-secondary">Détecter avec Vivacité</a>
         {% endif %}
         <hr>
-        <a href="/" class="btn btn-primary">Go Back Home</a>
+        <a href="/" class="btn btn-primary">Retour à l'accueil</a>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>

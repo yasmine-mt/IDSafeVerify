@@ -1,10 +1,13 @@
 #Transform pages of upload into dynamics one with amazing transitions
 
-#FACE RECOGNITION IN LIVENESS + Anti Spoofing (Try using deep face in face comparison in the liveness )
-
+#FACE RECOGNITION IN LIVENESS + Anti Spoofing (Try using deep face in face comparison in the liveness ) + Add rectangle on the face + after finishing veificationredirect to
+#success page with a check icon plus a button veify another id document
+#problems of precision and problem of accuracy in the liveness detection
+#problem in H1 mssg incorrects
+#problem in H1 mssg incorrects
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, jsonify
-import os , io
+import os,io
 from readmrz import MrzDetector, MrzReader
 from datetime import datetime
 import pycountry
@@ -16,11 +19,13 @@ import face_recognition
 import base64
 import random
 
+
 def asfarray(a, dtype=np.float64):
     """
     Converts input to an array of the given data type.
     """
     return np.asarray(a, dtype=dtype)
+
 
 np.asfarray = asfarray
 
@@ -30,10 +35,10 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 detector = MrzDetector()
 reader = MrzReader()
 detector1 = dlib.get_frontal_face_detector()
-
 predictor = dlib.shape_predictor('models/shape_predictor_68_face_landmarks.dat')
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
+
 
 def find_existing_face_image(face_filename):
     """
@@ -45,6 +50,7 @@ def find_existing_face_image(face_filename):
     else:
         return None
 
+
 def normalize_date(date_str):
     """
     Normalizes a date string from 'yymmdd' format to 'dd/mm/yyyy'.
@@ -55,8 +61,9 @@ def normalize_date(date_str):
     except ValueError:
         return 'Invalid Date'
 
+
 def normalize_country(country_code):
-    """4
+    """
     Normalizes a country code to its full country name.
     """
     try:
@@ -64,6 +71,7 @@ def normalize_country(country_code):
         return country.name if country else 'Unknown'
     except Exception:
         return 'Unknown'
+
 
 def normalize_nationality(nationality_code):
     """
@@ -75,11 +83,13 @@ def normalize_nationality(nationality_code):
     except Exception:
         return 'Unknown'
 
+
 def normalize_document_id(doc_id):
     """
     Normalizes a document ID by removing non-alphanumeric characters and converting to uppercase.
     """
     return ''.join(filter(str.isalnum, doc_id)).upper()
+
 
 def normalize_document_type(document_type):
     """
@@ -90,6 +100,7 @@ def normalize_document_type(document_type):
     elif document_type == 'P' or document_type == 'PP':
         return 'Passport'
 
+
 def normalize_sex(sex):
     """
     Normalizes a sex code to a readable string.
@@ -99,6 +110,7 @@ def normalize_sex(sex):
     elif sex == 'M':
         return 'Male'
 
+
 @app.route('/')
 def Home():
     """
@@ -106,12 +118,14 @@ def Home():
     """
     return render_template('Page_Accueil.html', error=None)
 
+
 @app.route('/home')
 def index():
     """
     Renders the index page.
     """
     return render_template('index.html', error=None)
+
 
 @app.route('/upload_back', methods=['POST'])
 def upload_back():
@@ -200,6 +214,7 @@ def upload_back():
             return render_template('index.html', error=error)
     return render_template('index.html', error=error)
 
+
 @app.route('/upload_front', methods=['POST'])
 def upload_front():
     """
@@ -270,6 +285,10 @@ def upload_front():
 
 @app.route('/compare_selfie', methods=['POST'])
 def compare_selfie():
+    """
+    Compares faces if they are similar
+    :return: similarity score and a comparison result
+    """
     if 'selfie' not in request.files:
         return jsonify(error="Error: No file part."), 400
 
@@ -318,6 +337,10 @@ def compare_selfie():
 
 @app.route('/verify_selfie')
 def verify_selfie():
+    """
+    Receives a face as an argument and verify if is not none
+    :return: the face filename or a json response as an error
+    """
     face_filename = request.args.get('face_filename', default=None)
     if face_filename is None:
         return jsonify(error="Error: Face filename not provided."), 400
@@ -325,148 +348,159 @@ def verify_selfie():
     return render_template('verify_selfie.html', face_filename=face_filename)
 
 
-actions = ["Smile", "Turn right", "Turn left", "Look up", "Look down"]
+actions = ["Souriez", "Tournez à droite", "Tournez à gauche", "Levez les yeux", "Baissez les yeux"]
 
 
 def get_random_actions(n=3):
+    """
+    Get a random selection of actions from the predefined list.
+    :param n: Number of actions to select
+    :return: List of random actions
+    """
     return random.sample(actions, n)
-
 
 @app.route('/initiate_liveness', methods=['GET'])
 def initiate_liveness():
+    """
+    Endpoint to initiate liveness detection by selecting random actions.
+    :return: JSON response with selected actions and delay time
+    """
     selected_actions = get_random_actions()
-    return jsonify({"actions": selected_actions})
+    delay = 4
+    return jsonify({"actions": selected_actions, "delay": delay})
 
 
 def process_image(image_data, action):
-    # Decode the image
+    """
+    Process the image to detect specified action.
+    :param image_data: Base64 encoded image data
+    :param action: Action to be detected
+    :return: Result of action detection
+    """
     image_data = base64.b64decode(image_data.split(',')[1])
     np_arr = np.frombuffer(image_data, np.uint8)
     frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    frame_resized = cv2.resize(frame, (640, 480))
 
-    # Detect landmarks
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2GRAY)
     rects = detector1(gray, 1)
     landmarks = []
+
+    if len(rects) == 0:
+        return "Aucun visage détecté"
+
     for rect in rects:
         shape = predictor(gray, rect)
         shape = face_utils.shape_to_np(shape)
         landmarks.append(shape)
 
-    action_result = analyze_actions(landmarks, action, frame)
+    action_result = analyze_actions(landmarks, action, frame_resized)
     return action_result
 
 
 def analyze_actions(landmarks, action, frame):
     if not landmarks:
-        return f"{action} not detected"
+        return f"{action} non"
 
-    for shape in landmarks:
-        if action == "Smile":
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray = cv2.GaussianBlur(gray, (5, 5), 0)
-            gray = cv2.equalizeHist(gray)
-            smiles = smile_cascade.detectMultiScale(gray, scaleFactor=1.8, minNeighbors=35, minSize=(25, 25), flags=cv2.CASCADE_SCALE_IMAGE)
-            mouth = shape[48:60]
-            mouth_width = np.linalg.norm(mouth[0] - mouth[6])
-            smile_threshold = 30
-            if len(smiles) > 0 and mouth_width > smile_threshold:
-                return "Smiling detected"
-            else:
-                return "Smile not detected"
+    shape = landmarks[0]
 
-        elif action in ["Turn right", "Turn left"]:
-            image_points = np.array([shape[30], shape[8], shape[36], shape[45], shape[48], shape[54]], dtype="double")
-            model_points = np.array([(0.0, 0.0, 0.0), (0.0, -330.0, -65.0), (-225.0, 170.0, -135.0), (225.0, 170.0, -135.0), (-150.0, -150.0, -125.0), (150.0, -150.0, -125.0)])
-            size = frame.shape
-            focal_length = size[1]
-            center = (size[1] // 2, size[0] // 2)
-            camera_matrix = np.array([[focal_length, 0, center[0]], [0, focal_length, center[1]], [0, 0, 1]], dtype="double")
-            dist_coeffs = np.zeros((4, 1))
-            success, rotation_vector, translation_vector = cv2.solvePnP(model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
-            if not success:
-                return "Pose estimation failed"
-            rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
-            pose_matrix = cv2.hconcat((rotation_matrix, translation_vector))
-            _, _, _, _, _, _, eulerAngles = cv2.decomposeProjectionMatrix(pose_matrix)
-            yaw = eulerAngles[1, 0]
-            turn_threshold = 15
-            if action == "Turn left" and yaw < -turn_threshold:
-                return "Turn left detected"
-            if action == "Turn right" and yaw > turn_threshold:
-                return "Turn right detected"
+    if action == "Souriez":
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (5, 5), 0)
+        gray = cv2.equalizeHist(gray)
+        smiles = smile_cascade.detectMultiScale(gray, scaleFactor=1.8, minNeighbors=35, minSize=(25, 25),
+                                                flags=cv2.CASCADE_SCALE_IMAGE)
+        mouth = shape[48:60]
+        mouth_width = np.linalg.norm(mouth[0] - mouth[6])
+        smile_threshold = 30
+        if len(smiles) > 0 and mouth_width > smile_threshold:
+            return "Sourire détecté"
+        else:
+            return "Souriez non"
 
-        elif action in ["Look up", "Look down"]:
-            image_points = np.array([shape[30], shape[8], shape[36], shape[45], shape[48], shape[54]], dtype="double")
-            model_points = np.array([(0.0, 0.0, 0.0), (0.0, -330.0, -65.0), (-225.0, 170.0, -135.0), (225.0, 170.0, -135.0), (-150.0, -150.0, -125.0), (150.0, -150.0, -125.0)])
-            size = frame.shape
-            focal_length = size[1]
-            center = (size[1] // 2, size[0] // 2)
-            camera_matrix = np.array([[focal_length, 0, center[0]], [0, focal_length, center[1]], [0, 0, 1]], dtype="double")
-            dist_coeffs = np.zeros((4, 1))
-            success, rotation_vector, translation_vector = cv2.solvePnP(model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
-            if not success:
-                return "Pose estimation failed"
-            rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
-            pose_matrix = cv2.hconcat((rotation_matrix, translation_vector))
-            _, _, _, _, _, _, eulerAngles = cv2.decomposeProjectionMatrix(pose_matrix)
-            pitch = eulerAngles[0, 0]
-            look_threshold = 15
-            if action == "Look up" and pitch > look_threshold:
-                return "Look up detected"
-            if action == "Look down" and pitch < -look_threshold:
-                return "Look down detected"
+    image_points = np.array([shape[30], shape[8], shape[36], shape[45], shape[48], shape[54]], dtype="double")
+    model_points = np.array(
+        [(0.0, 0.0, 0.0), (0.0, -330.0, -65.0), (-225.0, 170.0, -135.0), (225.0, 170.0, -135.0),
+         (-150.0, -150.0, -125.0), (150.0, -150.0, -125.0)])
+    size = frame.shape
+    focal_length = size[1]
+    center = (size[1] // 2, size[0] // 2)
+    camera_matrix = np.array([[focal_length, 0, center[0]], [0, focal_length, center[1]], [0, 0, 1]],
+                             dtype="double")
+    dist_coeffs = np.zeros((4, 1))
+    success, rotation_vector, translation_vector = cv2.solvePnP(model_points, image_points, camera_matrix,
+                                                                dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
+    if not success:
+        return "Échec de l'estimation de la pose"
+    rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+    pose_matrix = cv2.hconcat((rotation_matrix, translation_vector))
+    _, _, _, _, _, _, eulerAngles = cv2.decomposeProjectionMatrix(pose_matrix)
+    yaw, pitch = eulerAngles[1, 0], eulerAngles[0, 0]
 
-    return f"{action} not detected"
+    turn_threshold, look_threshold = 15, 15
+    if action == "Tournez à gauche" and yaw < -turn_threshold:
+        return "Tournez à gauche détecté"
+    if action == "Tournez à droite" and yaw > turn_threshold:
+        return "Tournez à droite détecté"
+    if action == "Levez les yeux" and pitch > look_threshold:
+        return "Levez les yeux détecté"
+    if action == "Baissez les yeux" and pitch < -look_threshold:
+        return "Baissez les yeux détecté"
+
+    return f"{action} non"
+
 
 @app.route('/process_frame', methods=['POST'])
 def process_frame():
+    """
+    Endpoint to process a frame from the video feed and check the liveness action.
+    :return: JSON response with the result of the action detection
+    """
     data = request.json
     image_data = data['image']
     action = data['action']
     face_filename = data['face_filename']
     result = process_image(image_data, action)
 
-    # Load selfie image from frame
     selfie_image = face_recognition.load_image_file(io.BytesIO(base64.b64decode(image_data.split(',')[1])))
     selfie_encodings = face_recognition.face_encodings(selfie_image)
 
     if len(selfie_encodings) == 0:
-        return jsonify({"result": f"{action} not detected", "error": "No faces detected in the selfie."})
+        return jsonify({"result": f"{action} non", "error": "No faces detected in the selfie."})
 
     selfie_encoding = selfie_encodings[0]
 
-    # Load face image from file
     face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
     if not os.path.exists(face_file_path):
-        return jsonify({"result": f"{action} not detected", "error": "Face image not found."})
+        return jsonify({"result": f"{action} non", "error": "Face image not found."})
 
     face_image = face_recognition.load_image_file(face_file_path)
     face_encodings = face_recognition.face_encodings(face_image)
     if len(face_encodings) == 0:
-        return jsonify({"result": f"{action} not detected", "error": "No faces detected in the ID photo."})
+        return jsonify({"result": f"{action} non", "error": "No faces detected in the ID photo."})
 
     face_encoding = face_encodings[0]
 
-    # Compare faces
     distance = np.linalg.norm(selfie_encoding - face_encoding)
     similarity_score = 1 - distance
     similarity_threshold = 0.6
     comparison_result = bool(distance < similarity_threshold)
 
     if comparison_result:
-        result += " and same person as ID"
+        result += " et même personne que l'ID"
     else:
-        result += " but not the same person as ID"
+        result += " mais pas la même personne que l'ID"
 
     return jsonify({"result": result, "similarity_score": similarity_score})
 
 @app.route('/liveness_detection')
 def liveness_detection():
+    """
+    Render the liveness detection page.
+    :return: HTML template for liveness detection
+    """
     face_filename = request.args.get('face_filename', default=None)
     return render_template('liveness_Test.html', face_filename=face_filename)
-
-
 
 if __name__ == '__main__':
     app.run(debug=True)

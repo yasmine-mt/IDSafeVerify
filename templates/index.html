@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <link rel="icon" href="/static/uploads/icon_title.png" type="image/png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload an ID Document</title>
+    <title>Service MRZ</title>
     <style>
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
         }
-         .bg-animation {
+        .bg-animation {
             background: linear-gradient(to right, #4e54c8, #8f94fb);
             background-size: 800% 100%;
             animation: gradient 10s ease infinite;
@@ -35,7 +35,7 @@
             }
         }
 
-         .file-upload {
+        .file-upload {
             background-color: rgba(255, 255, 255, 0.7);
             width: 600px;
             margin: 0 auto;
@@ -175,7 +175,7 @@
 <body>
     <div class="bg-animation">
         <div class="file-upload">
-            <h1>Upload an ID Document with MRZ</h1>
+            <h1>Télécharger une pièce d'Identité avec MRZ</h1>
             {% if error %}
                 <p style="color: red;">{{ error }}</p>
             {% endif %}
@@ -183,22 +183,22 @@
                 <div class="image-upload-wrap">
                     <input class="file-upload-input" type="file" name="file" onchange="readURL(this);" accept="image/*" required>
                     <div class="drag-text">
-                        <h3>Drag and drop a file to add an Image</h3>
+                        <h3>Glissez et déposez un fichier pour ajouter une image</h3>
                     </div>
                 </div>
                 <hr>
                 <div class="file-upload-content">
                     <div class="file-upload-image-wrapper">
-                        <img class="file-upload-image" src="#" alt="your image" />
+                        <img class="file-upload-image" src="#" alt="votre image" />
                         <div class="scanner-overlay">
                             <div class="scanner-line"></div>
                         </div>
                     </div>
                     <div class="image-title-wrap">
-                        <button type="button" onclick="removeUpload()" class="remove-image">Remove <span class="image-title">Uploaded Image</span></button>
+                        <button type="button" onclick="removeUpload()" class="remove-image">Retirer <span class="image-title">l'image téléchargée</span></button>
                     </div>
                 </div>
-                <button class="file-upload-btn" type="submit">Upload</button>
+                <button class="file-upload-btn" type="submit">Télécharger</button>
             </form>
         </div>
     </div>
