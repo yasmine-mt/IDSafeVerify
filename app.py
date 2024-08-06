@@ -1,10 +1,10 @@
 #Transform pages of upload into dynamics one with amazing transitions
 
 #FACE RECOGNITION IN LIVENESS + Anti Spoofing (Try using deep face in face comparison in the liveness ) + Add rectangle on the face + after finishing veificationredirect to
-#success page with a check icon plus a button veify another id document
-#problems of precision and problem of accuracy in the liveness detection
-#problem in H1 mssg incorrects
-#problem in H1 mssg incorrects
+
+#verify that the front id is the same one as the back
+#speed of the actions must bbe only 3 seconds
+
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, jsonify
 import os,io
