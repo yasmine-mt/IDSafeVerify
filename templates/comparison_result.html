@@ -39,17 +39,6 @@
             margin-top: 20px;
         }
 
-        .profile-photo {
-            width: 150px;
-            height: 150px;
-            background-color: #ddd;
-            border-radius: 50%;
-            margin: 20px auto;
-            overflow: hidden;
-            border: 4px solid #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
         .profile-photo img {
             width: 100%;
             height: auto;
@@ -62,20 +51,28 @@
             font-size: 2.5rem;
         }
 
-        .back-button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #4285F4;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background-color 0.3s ease;
+         .bg-animation {
+            background: linear-gradient(to right, #4e54c8, #8f94fb);
+            background-size: 800% 100%;
+            animation: gradient 10s ease infinite;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+            text-align: center;
         }
-
-        .back-button:hover {
-            background-color: #357ae8;
+        @keyframes gradient {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
         }
 
         @keyframes fadeIn {
@@ -89,6 +86,7 @@
     <div class="logo">
             <img src="/static/logo.png" alt="Company Logo">
         </div>
+     <div class="bg-animation">
     <div class="container">
         <h1>Résultat de la Comparaison de Visages</h1>
         {% if error %}
@@ -102,10 +100,15 @@
             <p class="font-weight-bold">Score de Similarité : {{ similarity_score * 100 | round(2) }}%</p>
             {% endif %}
         {% endif %}
-        <a href="/" class="btn btn-primary btn-lg btn-block mt-4">Retour à l'Accueil</a>
-    </div>
+        <button onclick="goBack()" class="btn btn-secondary mt-3">Retour à la page précédente</button>
+    </div></div>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+         function goBack() {
+            window.history.back();
+        }
+    </script>
 </body>
 </html>

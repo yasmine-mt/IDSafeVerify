@@ -1,10 +1,3 @@
-#Transform pages of upload into dynamics one with amazing transitions
-
-#FACE RECOGNITION IN LIVENESS + Anti Spoofing (Try using deep face in face comparison in the liveness ) + Add rectangle on the face + after finishing veificationredirect to
-
-#verify that the front id is the same one as the back
-#speed of the actions must bbe only 3 seconds
-
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, jsonify
 import os,io
@@ -18,6 +11,13 @@ from imutils import face_utils
 import face_recognition
 import base64
 import random
+
+#Shake ur head + blink
+#faire un tableau chaque bibliotheques avec use of it
+#Add more acuracy and precison on actions turn left , turn right
+#if it is an id card upload recto verso of the id card in the same time
+#without need to another page upload_front.html
+#result it needs to check if its the person and all actions performed correctly
 
 
 def asfarray(a, dtype=np.float64):
@@ -38,7 +38,6 @@ detector1 = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor('models/shape_predictor_68_face_landmarks.dat')
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
-
 
 def find_existing_face_image(face_filename):
     """
@@ -174,7 +173,6 @@ def upload_back():
                 normalized_fields['Country'] = normalize_country(result['country'])
             if 'nationality' in result:
                 normalized_fields['Nationality'] = normalize_nationality(result['nationality'])
-
             if normalized_fields.get('Document type') == 'Passport':
                 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
@@ -348,8 +346,7 @@ def verify_selfie():
     return render_template('verify_selfie.html', face_filename=face_filename)
 
 
-actions = ["Souriez", "Tournez à droite", "Tournez à gauche", "Levez les yeux", "Baissez les yeux"]
-
+actions = ["Souriez", "Tournez à droite", "Tournez à gauche", "Levez les yeux", "Baissez les yeux", "Clignez des yeux", "Secouez la tête"]
 
 def get_random_actions(n=3):
     """
@@ -399,6 +396,17 @@ def process_image(image_data, action):
 
 
 def analyze_actions(landmarks, action, frame):
+    """
+    Analyse the user's action based on facial landmarks and head pose estimation.
+
+    Parameters:
+    - landmarks: List of facial landmarks detected in the frame.
+    - action: The action to be detected (e.g., "Souriez", "Tournez à droite").
+    - frame: The current video frame for processing.
+
+    Returns:
+    - A string indicating whether the action was detected or not.
+    """
     if not landmarks:
         return f"{action} non"
 
@@ -418,6 +426,9 @@ def analyze_actions(landmarks, action, frame):
         else:
             return "Souriez non"
 
+    """
+    Points for head pose estimation.
+    """
     image_points = np.array([shape[30], shape[8], shape[36], shape[45], shape[48], shape[54]], dtype="double")
     model_points = np.array(
         [(0.0, 0.0, 0.0), (0.0, -330.0, -65.0), (-225.0, 170.0, -135.0), (225.0, 170.0, -135.0),
@@ -428,16 +439,29 @@ def analyze_actions(landmarks, action, frame):
     camera_matrix = np.array([[focal_length, 0, center[0]], [0, focal_length, center[1]], [0, 0, 1]],
                              dtype="double")
     dist_coeffs = np.zeros((4, 1))
+
+    """
+    Head pose estimation.
+    """
     success, rotation_vector, translation_vector = cv2.solvePnP(model_points, image_points, camera_matrix,
                                                                 dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
     if not success:
         return "Échec de l'estimation de la pose"
+
     rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
     pose_matrix = cv2.hconcat((rotation_matrix, translation_vector))
     _, _, _, _, _, _, eulerAngles = cv2.decomposeProjectionMatrix(pose_matrix)
     yaw, pitch = eulerAngles[1, 0], eulerAngles[0, 0]
 
-    turn_threshold, look_threshold = 15, 15
+    """
+    Thresholds adjusted for better detection.
+    """
+    turn_threshold = 20
+    look_threshold = 20
+    EAR_THRESHOLD = 0.25
+    """
+    Action detection based on the detected yaw and pitch angles.
+    """
     if action == "Tournez à gauche" and yaw < -turn_threshold:
         return "Tournez à gauche détecté"
     if action == "Tournez à droite" and yaw > turn_threshold:
@@ -446,8 +470,39 @@ def analyze_actions(landmarks, action, frame):
         return "Levez les yeux détecté"
     if action == "Baissez les yeux" and pitch < -look_threshold:
         return "Baissez les yeux détecté"
+    if action == "Clignez des yeux":
+        eye_aspect_ratio = compute_ear(shape[36:42])
+        if eye_aspect_ratio < EAR_THRESHOLD:
+            return "Clignement des yeux détecté"
+    if action == "Secouez la tête" and abs(yaw) > turn_threshold:
+        return "Secouez la tête détecté"
 
     return f"{action} non"
+
+
+def compute_ear(eye_landmarks):
+    """
+    Calculate the Eye Aspect Ratio (EAR) for blink detection.
+
+    Parameters:
+    - eye_landmarks: Array of eye landmarks.
+
+    Returns:
+    - The computed EAR value.
+    """
+    A = np.linalg.norm(eye_landmarks[1] - eye_landmarks[5])
+    B = np.linalg.norm(eye_landmarks[2] - eye_landmarks[4])
+    C = np.linalg.norm(eye_landmarks[0] - eye_landmarks[3])
+    ear = (A + B) / (2.0 * C)
+    return ear
+
+
+def eye_aspect_ratio(eye):
+    A = np.linalg.norm(eye[1] - eye[5])
+    B = np.linalg.norm(eye[2] - eye[4])
+    C = np.linalg.norm(eye[0] - eye[3])
+    ear = (A + B) / (2.0 * C)
+    return ear
 
 
 @app.route('/process_frame', methods=['POST'])
@@ -511,6 +566,7 @@ def success():
     :return: HTML template for success
     """
     return render_template('success.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True)

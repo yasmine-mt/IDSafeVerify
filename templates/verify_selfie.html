@@ -135,7 +135,7 @@
             <video id="video" autoplay></video>
             <button id="capture" class="btn btn-danger mt-3">Capturer la Photo</button>
         </div>
-        <a href="/" class="btn btn-secondary mt-3">Retour à l'accueil</a>
+        <button onclick="goBack()" class="btn btn-secondary mt-3">Retour à la page précédente</button>
     </div>
      <div class="logo">
         <img src="/static/logo.png" alt="Company Logo">
@@ -185,6 +185,9 @@
                 .catch(error => console.error('Erreur de téléchargement de la photo:', error));
             }, 'image/jpeg');
         });
+         function goBack() {
+            window.history.back();
+        }
     </script>
 </body>
 </html>

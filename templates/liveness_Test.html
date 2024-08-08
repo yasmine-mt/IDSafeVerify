@@ -98,6 +98,42 @@
             content: '😊';
             font-size: 2em;
         }
+        .blink {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 5px solid #fff;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+    pointer-events: none;
+}
+
+        .blink:before {
+            content: '👁️';
+            font-size: 2em;
+        }
+
+        .shake {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 5px solid #fff;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(0deg);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .shake:before {
+            content: '↔️';
+            font-size: 2em;
+        }
+
 
 
         #try-again {
@@ -123,13 +159,16 @@
     <h1>Détection de Vivacité</h1>
     <div id="instructions">Chargement...</div>
     <div id="video-container">
-        <video id="video" width="640" height="480" autoplay></video>
-        <div class="arrow arrow-right" id="arrow-right"></div>
-        <div class="arrow arrow-left" id="arrow-left"></div>
-        <div class="arrow arrow-up" id="arrow-up"></div>
-        <div class="arrow arrow-down" id="arrow-down"></div>
-        <div class="smile" id="smile"></div>
+    <video id="video" width="640" height="480" autoplay></video>
+    <div class="arrow arrow-right" id="arrow-right"></div>
+    <div class="arrow arrow-left" id="arrow-left"></div>
+    <div class="arrow arrow-up" id="arrow-up"></div>
+    <div class="arrow arrow-down" id="arrow-down"></div>
+    <div class="smile" id="smile"></div>
+    <div class="blink" id="blink"></div>
+    <div class="shake" id="shake"></div>
     </div>
+
     <input type="hidden" id="faceFilename" value="{{ face_filename }}">
     <audio id="beep" src="/static/beep.mp3" preload="auto"></audio>
     <hr>
@@ -142,6 +181,8 @@
         const arrowUp = document.getElementById('arrow-up');
         const arrowDown = document.getElementById('arrow-down');
         const smile = document.getElementById('smile');
+        const blink = document.getElementById('blink');
+        const shake = document.getElementById('shake');
         const faceFilename = document.getElementById('faceFilename').value;
         const beep = document.getElementById('beep');
         const tryAgainButton = document.getElementById('try-again');
@@ -227,24 +268,31 @@
 
 
         function showIndicator(action) {
-            hideAllIndicators();
-            if (action === "Tournez à droite") {
-                arrowRight.style.opacity = 1;
-                arrowRight.style.transform = 'translate(50%, -50%) rotate(0deg)';
-            } else if (action === "Tournez à gauche") {
-                arrowLeft.style.opacity = 1;
-                arrowLeft.style.transform = 'translate(-50%, -50%) rotate(0deg)';
-            } else if (action === "Souriez") {
-                smile.style.opacity = 1;
-                smile.style.transform = 'translate(-50%, -50%) scale(1.2)';
-            } else if (action === "Levez les yeux") {
-                arrowUp.style.opacity = 1;
-                arrowUp.style.transform = 'translate(-50%, -50%) scale(1.2)';
-            } else if (action === "Baissez les yeux") {
-                arrowDown.style.opacity = 1;
-                arrowDown.style.transform = 'translate(-50%, 50%) scale(1.2)';
-            }
+        hideAllIndicators();
+        if (action === "Tournez à droite") {
+            arrowRight.style.opacity = 1;
+            arrowRight.style.transform = 'translate(50%, -50%) rotate(0deg)';
+        } else if (action === "Tournez à gauche") {
+            arrowLeft.style.opacity = 1;
+            arrowLeft.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+        } else if (action === "Souriez") {
+            smile.style.opacity = 1;
+            smile.style.transform = 'translate(-50%, -50%) scale(1.2)';
+        } else if (action === "Levez les yeux") {
+            arrowUp.style.opacity = 1;
+            arrowUp.style.transform = 'translate(-50%, -50%) scale(1.2)';
+        } else if (action === "Baissez les yeux") {
+            arrowDown.style.opacity = 1;
+            arrowDown.style.transform = 'translate(-50%, 50%) scale(1.2)';
+        } else if (action === "Clignez des yeux") {
+            blink.style.opacity = 1;
+            blink.style.transform = 'translate(-50%, -50%) scale(1.2)';
+        } else if (action === "Secouez la tête") {
+            shake.style.opacity = 1;
+            shake.style.transform = 'translate(-50%, -50%) rotate(0deg)';
         }
+    }
+
         function hideAllIndicators() {
             arrowRight.style.opacity = 0;
             arrowLeft.style.opacity = 0;
