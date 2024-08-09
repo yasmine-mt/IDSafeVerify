@@ -12,7 +12,6 @@ import face_recognition
 import base64
 import random
 
-#Shake ur head + blink
 #faire un tableau chaque bibliotheques avec use of it
 #Add more acuracy and precison on actions turn left , turn right
 #if it is an id card upload recto verso of the id card in the same time
@@ -38,6 +37,9 @@ detector1 = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor('models/shape_predictor_68_face_landmarks.dat')
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
+
+actions = ["Souriez", "Tournez à droite", "Tournez à gauche", "Levez les yeux", "Baissez les yeux", "Clignez des yeux", "Secouez la tête"]
+
 
 def find_existing_face_image(face_filename):
     """
@@ -346,8 +348,6 @@ def verify_selfie():
     return render_template('verify_selfie.html', face_filename=face_filename)
 
 
-actions = ["Souriez", "Tournez à droite", "Tournez à gauche", "Levez les yeux", "Baissez les yeux", "Clignez des yeux", "Secouez la tête"]
-
 def get_random_actions(n=3):
     """
     Get a random selection of actions from the predefined list.
@@ -355,6 +355,7 @@ def get_random_actions(n=3):
     :return: List of random actions
     """
     return random.sample(actions, n)
+
 
 @app.route('/initiate_liveness', methods=['GET'])
 def initiate_liveness():
@@ -498,10 +499,10 @@ def compute_ear(eye_landmarks):
 
 
 def eye_aspect_ratio(eye):
-    A = np.linalg.norm(eye[1] - eye[5])
-    B = np.linalg.norm(eye[2] - eye[4])
-    C = np.linalg.norm(eye[0] - eye[3])
-    ear = (A + B) / (2.0 * C)
+    a = np.linalg.norm(eye[1] - eye[5])
+    b = np.linalg.norm(eye[2] - eye[4])
+    c = np.linalg.norm(eye[0] - eye[3])
+    ear = (a + b) / (2.0 * c)
     return ear
 
 
