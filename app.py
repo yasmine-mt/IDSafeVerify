@@ -12,12 +12,6 @@ import face_recognition
 import base64
 import random
 
-#faire un tableau chaque bibliotheques avec use of it
-#Add more acuracy and precison on actions turn left , turn right
-#if it is an id card upload recto verso of the id card in the same time
-#without need to another page upload_front.html
-#result it needs to check if its the person and all actions performed correctly
-
 
 def asfarray(a, dtype=np.float64):
     """
@@ -128,159 +122,133 @@ def index():
     return render_template('index.html', error=None)
 
 
-@app.route('/upload_back', methods=['POST'])
-def upload_back():
+@app.route('/upload_id', methods=['POST'])
+def upload_id():
     """
-    Handles the upload of the back side of an ID card or a passport, processes the MRZ data, and renders the upload front page or profile page accordingly.
+    Handles the upload of the front and back sides of an ID card or a passport, processes the MRZ data,
+    and renders the appropriate profile or upload page accordingly.
     """
     error = None
-    if 'file' not in request.files:
-        error = 'No file part'
+    front_file = request.files.get('front_file')
+    back_file = request.files.get('back_file')
+    passport_file = request.files.get('passport_file')
+
+    if not front_file and not passport_file:
+        error = 'Please upload either the front and back sides of your ID card, or a passport.'
         return render_template('index.html', error=error)
 
-    file = request.files['file']
-    if file.filename == '':
-        error = 'No selected file'
-        return render_template('index.html', error=error)
-
-    if file:
-        try:
-            filename = "back_" + secure_filename(file.filename)
+    try:
+        if passport_file:
+            filename = "passport_" + secure_filename(passport_file.filename)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
+            passport_file.save(file_path)
             image = detector.read(file_path)
             cropped = detector.crop_area(image)
             result = reader.process(cropped)
 
             os.remove(file_path)
 
-            normalized_fields = {}
-            if 'optional_data' in result and result['optional_data'] is not None:
-                normalized_fields['ID'] = result['optional_data']
-            if 'document_number' in result:
-                normalized_fields['Document number'] = normalize_document_id(result['document_number'])
-            if 'document_type' in result:
-                normalized_fields['Document type'] = normalize_document_type(result['document_type'])
-            if 'surname' in result:
-                normalized_fields['Last name'] = result['surname']
-            if 'name' in result:
-                normalized_fields['First name'] = result['name']
-            if 'sex' in result:
-                normalized_fields['Gender'] = normalize_sex(result['sex'])
-            if 'birth_date' in result:
-                normalized_fields['Birth date'] = normalize_date(result['birth_date'])
-            if 'expiry_date' in result:
-                normalized_fields['Expiry date'] = normalize_date(result['expiry_date'])
-            if 'country' in result:
-                normalized_fields['Country'] = normalize_country(result['country'])
-            if 'nationality' in result:
-                normalized_fields['Nationality'] = normalize_nationality(result['nationality'])
-            if normalized_fields.get('Document type') == 'Passport':
-                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
-                faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+            normalized_fields = process_mrz_data(result)
+            face_filename = process_face_detection(image, passport_file.filename)
 
-                if len(faces) == 0:
-                    error = "No faces detected in the image."
-                    return render_template('index.html', error=error)
-                else:
-                    for (x, y, w, h) in faces:
-                        margin = int(0.2 * w)
-                        x_start = max(x - margin, 0)
-                        y_start = max(y - margin, 0)
-                        x_end = min(x + w + margin, image.shape[1])
-                        y_end = min(y + h + margin, image.shape[0])
+            return render_template('profile.html', face_filename=face_filename, mrz_data=normalized_fields, error=None)
 
-                        face_crop = image[y_start:y_end, x_start:x_end]
-                        mask = np.zeros((face_crop.shape[0], face_crop.shape[1]), dtype=np.uint8)
-                        center = (face_crop.shape[1] // 2, face_crop.shape[0] // 2)
-                        radius = min(center[0], center[1], face_crop.shape[1] - center[0], face_crop.shape[0] - center[1])
-                        cv2.circle(mask, center, radius, (255, 255, 255), -1)
+        elif front_file and back_file:
+            back_filename = "back_" + secure_filename(back_file.filename)
+            back_file_path = os.path.join(app.config['UPLOAD_FOLDER'], back_filename)
+            back_file.save(back_file_path)
+            back_image = detector.read(back_file_path)
+            cropped_back = detector.crop_area(back_image)
+            result = reader.process(cropped_back)
 
-                        face_crop_masked = cv2.bitwise_and(face_crop, face_crop, mask=mask)
-                        b, g, r = cv2.split(face_crop_masked)
-                        alpha = mask
-                        face_crop_rgba = cv2.merge((b, g, r, alpha))
+            os.remove(back_file_path)
 
-                        face_filename = "face_" + secure_filename(file.filename).rsplit('.', 1)[0] + ".png"
-                        face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
-                        cv2.imwrite(face_file_path, face_crop_rgba)
+            normalized_fields = process_mrz_data(result)
 
-                    return render_template('profile.html', face_filename=face_filename, mrz_data=normalized_fields, error=None)
-            else:
-                return render_template('upload_front.html', mrz_data=normalized_fields, error=None)
-        except Exception as e:
-            error = str(e)
-            return render_template('index.html', error=error)
-    return render_template('index.html', error=error)
+            front_filename = "front_" + secure_filename(front_file.filename)
+            front_file_path = os.path.join(app.config['UPLOAD_FOLDER'], front_filename)
+            front_file.save(front_file_path)
+            img = cv2.imread(front_file_path)
+            if img is None:
+                raise Exception(f"Error: Could not read image from '{front_file_path}'.")
 
+            face_filename = process_face_detection(img, front_file.filename)
+            os.remove(front_file_path)
 
-@app.route('/upload_front', methods=['POST'])
-def upload_front():
-    """
-    Uploads the front image of the ID, detects the face, and returns a larger, circular cropped face image.
-    """
-    error = None
-    face_filename = None
+            return render_template('profile.html', face_filename=face_filename, mrz_data=normalized_fields, error=None)
 
-    if 'file' not in request.files:
-        error = 'No file part'
-        return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
-
-    file = request.files['file']
-    if file.filename == '':
-        error = 'No selected file'
-        return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
-
-    try:
-        filename = "front_" + secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-        file.save(file_path)
-        img = cv2.imread(file_path)
-        if img is None:
-            raise Exception(f"Error: Could not read image from '{file_path}'.")
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
-
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-
-        if len(faces) == 0:
-            error = "No faces detected in the image."
-            return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
         else:
-            for (x, y, w, h) in faces:
-                margin = int(0.2 * w)
-                x_start = max(x - margin, 0)
-                y_start = max(y - margin, 0)
-                x_end = min(x + w + margin, img.shape[1])
-                y_end = min(y + h + margin, img.shape[0])
-
-                face_crop = img[y_start:y_end, x_start:x_end]
-                mask = np.zeros((face_crop.shape[0], face_crop.shape[1]), dtype=np.uint8)
-                center = (face_crop.shape[1] // 2, face_crop.shape[0] // 2)
-                radius = min(center[0], center[1], face_crop.shape[1] - center[0], face_crop.shape[0] - center[1])
-                cv2.circle(mask, center, radius, (255, 255, 255), -1)
-
-                face_crop_masked = cv2.bitwise_and(face_crop, face_crop, mask=mask)
-                b, g, r = cv2.split(face_crop_masked)
-                alpha = mask
-                face_crop_rgba = cv2.merge((b, g, r, alpha))
-
-                face_filename = "face_" + secure_filename(file.filename).rsplit('.', 1)[0] + ".png"
-                face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
-                cv2.imwrite(face_file_path, face_crop_rgba)
-
-        os.remove(file_path)
+            error = 'Please upload both the front and back sides of your ID card.'
+            return render_template('index.html', error=error)
 
     except Exception as e:
         error = str(e)
-        return render_template('upload_front.html', error=error, mrz_data=request.form.get('mrz_data'))
+        return render_template('index.html', error=error)
 
-    mrz_data = eval(request.form.get('mrz_data'))
-    return render_template('profile.html', face_filename=face_filename, mrz_data=mrz_data, error=None)
+
+def process_mrz_data(result):
+    """
+    Processes the MRZ data extracted from the document image.
+    """
+    normalized_fields = {}
+    if 'optional_data' in result and result['optional_data'] is not None:
+        normalized_fields['ID'] = result['optional_data']
+    if 'document_number' in result:
+        normalized_fields['Document number'] = normalize_document_id(result['document_number'])
+    if 'document_type' in result:
+        normalized_fields['Document type'] = normalize_document_type(result['document_type'])
+    if 'surname' in result:
+        normalized_fields['Last name'] = result['surname']
+    if 'name' in result:
+        normalized_fields['First name'] = result['name']
+    if 'sex' in result:
+        normalized_fields['Gender'] = normalize_sex(result['sex'])
+    if 'birth_date' in result:
+        normalized_fields['Birth date'] = normalize_date(result['birth_date'])
+    if 'expiry_date' in result:
+        normalized_fields['Expiry date'] = normalize_date(result['expiry_date'])
+    if 'country' in result:
+        normalized_fields['Country'] = normalize_country(result['country'])
+    if 'nationality' in result:
+        normalized_fields['Nationality'] = normalize_nationality(result['nationality'])
+
+    return normalized_fields
+
+
+def process_face_detection(image, filename):
+    """
+    Detects the face in the provided image and returns the filename of the cropped face image.
+    """
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+
+    if len(faces) == 0:
+        raise Exception("No faces detected in the image.")
+
+    for (x, y, w, h) in faces:
+        margin = int(0.2 * w)
+        x_start = max(x - margin, 0)
+        y_start = max(y - margin, 0)
+        x_end = min(x + w + margin, image.shape[1])
+        y_end = min(y + h + margin, image.shape[0])
+
+        face_crop = image[y_start:y_end, x_start:x_end]
+        mask = np.zeros((face_crop.shape[0], face_crop.shape[1]), dtype=np.uint8)
+        center = (face_crop.shape[1] // 2, face_crop.shape[0] // 2)
+        radius = min(center[0], center[1], face_crop.shape[1] - center[0], face_crop.shape[0] - center[1])
+        cv2.circle(mask, center, radius, (255, 255, 255), -1)
+
+        face_crop_masked = cv2.bitwise_and(face_crop, face_crop, mask=mask)
+        b, g, r = cv2.split(face_crop_masked)
+        alpha = mask
+        face_crop_rgba = cv2.merge((b, g, r, alpha))
+
+        face_filename = "face_" + secure_filename(filename).rsplit('.', 1)[0] + ".png"
+        face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
+        cv2.imwrite(face_file_path, face_crop_rgba)
+
+    return face_filename
 
 
 @app.route('/compare_selfie', methods=['POST'])
@@ -413,6 +381,7 @@ def analyze_actions(landmarks, action, frame):
 
     shape = landmarks[0]
 
+    # Smile Detection
     if action == "Souriez":
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -421,15 +390,13 @@ def analyze_actions(landmarks, action, frame):
                                                 flags=cv2.CASCADE_SCALE_IMAGE)
         mouth = shape[48:60]
         mouth_width = np.linalg.norm(mouth[0] - mouth[6])
-        smile_threshold = 30
+        smile_threshold = 30  # Adjust based on validation
         if len(smiles) > 0 and mouth_width > smile_threshold:
             return "Sourire détecté"
         else:
             return "Souriez non"
 
-    """
-    Points for head pose estimation.
-    """
+    # Head Pose Estimation
     image_points = np.array([shape[30], shape[8], shape[36], shape[45], shape[48], shape[54]], dtype="double")
     model_points = np.array(
         [(0.0, 0.0, 0.0), (0.0, -330.0, -65.0), (-225.0, 170.0, -135.0), (225.0, 170.0, -135.0),
@@ -441,9 +408,6 @@ def analyze_actions(landmarks, action, frame):
                              dtype="double")
     dist_coeffs = np.zeros((4, 1))
 
-    """
-    Head pose estimation.
-    """
     success, rotation_vector, translation_vector = cv2.solvePnP(model_points, image_points, camera_matrix,
                                                                 dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
     if not success:
@@ -454,15 +418,10 @@ def analyze_actions(landmarks, action, frame):
     _, _, _, _, _, _, eulerAngles = cv2.decomposeProjectionMatrix(pose_matrix)
     yaw, pitch = eulerAngles[1, 0], eulerAngles[0, 0]
 
-    """
-    Thresholds adjusted for better detection.
-    """
-    turn_threshold = 20
-    look_threshold = 20
+    turn_threshold = 15
+    look_threshold = 15
     EAR_THRESHOLD = 0.25
-    """
-    Action detection based on the detected yaw and pitch angles.
-    """
+
     if action == "Tournez à gauche" and yaw < -turn_threshold:
         return "Tournez à gauche détecté"
     if action == "Tournez à droite" and yaw > turn_threshold:
@@ -479,6 +438,7 @@ def analyze_actions(landmarks, action, frame):
         return "Secouez la tête détecté"
 
     return f"{action} non"
+
 
 
 def compute_ear(eye_landmarks):
@@ -510,14 +470,13 @@ def eye_aspect_ratio(eye):
 def process_frame():
     """
     Endpoint to process a frame from the video feed and check the liveness action.
-    :return: JSON response with the result of the action detection
+    :return: JSON response with the result of the action detection and identity verification
     """
     data = request.json
     image_data = data['image']
     action = data['action']
     face_filename = data['face_filename']
     result = process_image(image_data, action)
-
     selfie_image = face_recognition.load_image_file(io.BytesIO(base64.b64decode(image_data.split(',')[1])))
     selfie_encodings = face_recognition.face_encodings(selfie_image)
 
@@ -536,7 +495,6 @@ def process_frame():
         return jsonify({"result": f"{action} non", "error": "No faces detected in the ID photo."})
 
     face_encoding = face_encodings[0]
-
     distance = np.linalg.norm(selfie_encoding - face_encoding)
     similarity_score = 1 - distance
     similarity_threshold = 0.6

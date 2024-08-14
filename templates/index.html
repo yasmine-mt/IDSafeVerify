@@ -10,6 +10,26 @@
             margin: 0;
             padding: 0;
             height: 100%;
+            font-family: 'Arial', sans-serif;
+            background: #f0f0f0;
+        }
+        .file-upload-btn {
+            background: #1FB264;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .file-upload-btn:hover {
+            background: #1AA059;
+        }
+        .file-upload-btn:active {
+            background: #15803d;
         }
         .bg-animation {
             background: linear-gradient(to right, #4e54c8, #8f94fb);
@@ -22,7 +42,7 @@
             color: #333;
             text-align: center;
         }
-         .logo {
+        .logo {
             position: fixed;
             top: 10px;
             left: 10px;
@@ -43,210 +63,157 @@
                 background-position: 0% 50%;
             }
         }
-
         .file-upload {
-            background-color: rgba(255, 255, 255, 0.7);
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
             width: 600px;
             margin: 0 auto;
-            padding: 20px;
-        }
-        .file-upload h1 {
-            color: #000;
-        }
-        .file-upload-btn {
-            width: 100%;
-            margin: 0;
-            color: #fff;
-            background: #1FB264;
-            border: none;
-            padding: 10px;
-            border-radius: 4px;
-            border-bottom: 4px solid #15824B;
-            transition: all .2s ease;
-            outline: none;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-        .file-upload-btn:hover {
-            background: #1AA059;
-            color: #ffffff;
-            transition: all .2s ease;
-            cursor: pointer;
-        }
-        .file-upload-btn:active {
-            border: 0;
-            transition: all .2s ease;
-        }
-        .file-upload-content {
-            display: none;
-            text-align: center;
+            padding: 30px;
             position: relative;
         }
-        .file-upload-input {
-            position: absolute;
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            outline: none;
-            opacity: 0;
-            cursor: pointer;
+        .file-upload h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
         }
         .image-upload-wrap {
             margin-top: 20px;
             border: 4px dashed #1FB264;
+            border-radius: 10px;
             position: relative;
+            overflow: hidden;
+            height: 200px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
         }
-        .image-dropping,
         .image-upload-wrap:hover {
-            background-color: #1FB264;
-            border: 4px dashed #ffffff;
+            background-color: #e9e9e9;
         }
-        .image-title-wrap {
-            padding: 0 15px 15px 15px;
-            color: #222;
+        .image-upload-wrap img {
+            max-width: 100%;
+            height: auto;
         }
+
+
         .drag-text {
             text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #15824B;
+            padding: 60px 0;
         }
         .drag-text h3 {
             font-weight: 100;
             text-transform: uppercase;
-            color: #15824B;
-            padding: 60px 0;
         }
-        .file-upload-image-wrapper {
+        .image-preview {
+            display: none;
+            margin-top: 40px;
             position: relative;
-            display: inline-block;
         }
-        .file-upload-image {
-            max-height: 200px;
-            max-width: 200px;
-            margin: auto;
-            padding: 20px;
-            display: block;
+        .image-preview img {
+            max-width: 100%;
+            border-radius: 10px;
         }
-        .scanner-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .scanner-line {
-            width: 90%;
-            height: 4px;
-            background-color: green;
-            box-shadow: 0 0 10px green;
-            position: absolute;
-            top: 0;
-            animation: scan 2s linear infinite;
-        }
-        @keyframes scan {
-            from {
-                top: 0;
-            }
-            to {
-                top: 100%;
-            }
-        }
-        .remove-image {
-            width: 200px;
-            margin: 0;
-            color: #fff;
-            background: #cd4535;
-            border: none;
-            padding: 10px;
-            border-radius: 4px;
-            border-bottom: 4px solid #b02818;
-            transition: all .2s ease;
-            outline: none;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-        .remove-image:hover {
-            background: #c13b2a;
-            color: #ffffff;
-            transition: all .2s ease;
-            cursor: pointer;
-        }
-        .remove-image:active {
-            border: 0;
-            transition: all .2s ease;
-        }
+
     </style>
 </head>
 <body>
     <div class="logo">
-            <img src="/static/logo.png" alt="Company Logo">
-        </div>
+        <img src="/static/logo.png" alt="Company Logo">
+    </div>
     <div class="bg-animation">
         <div class="file-upload">
             <h1>Télécharger une pièce d'Identité avec MRZ</h1>
             {% if error %}
                 <p style="color: red;">{{ error }}</p>
             {% endif %}
-            <form action="{{ url_for('upload_back') }}" method="post" enctype="multipart/form-data">
-                <div class="image-upload-wrap">
-                    <input class="file-upload-input" type="file" name="file" onchange="readURL(this);" accept="image/*" required>
-                    <div class="drag-text">
-                        <h3>Glissez et déposez un fichier pour ajouter une image</h3>
-                    </div>
-                </div>
-                <hr>
-                <div class="file-upload-content">
-                    <div class="file-upload-image-wrapper">
-                        <img class="file-upload-image" src="#" alt="votre image" />
-                        <div class="scanner-overlay">
-                            <div class="scanner-line"></div>
+            <div>
+                <label for="document-type">Choisissez le type de document :</label>
+                <select id="document-type" onchange="showUploadOptions()">
+                    <option value="" disabled selected>Sélectionnez un type</option>
+                    <option value="id-card">Carte d'identité</option>
+                    <option value="passport">Passeport</option>
+                </select>
+            </div>
+
+              <form action="{{ url_for('upload_id') }}" method="post" enctype="multipart/form-data">
+                <div id="id-card-options" style="display:none;">
+                    <div class="image-upload-wrap" id="front-wrap" onclick="triggerFileInput('front-file')">
+                        <input class="file-upload-input" type="file" id="front-file" name="front_file" accept="image/*" onchange="readURL(this, 'front-wrap', 'front-image')" style="display:none;">
+                        <div class="drag-text">
+                            <h3>Glissez et déposez l'image de la Face</h3>
                         </div>
                     </div>
-                    <div class="image-title-wrap">
-                        <button type="button" onclick="removeUpload()" class="remove-image">Retirer <span class="image-title">l'image téléchargée</span></button>
+                    <div class="image-preview" id="front-image-wrap">
+                        <img id="front-image" src="#" alt="Front Image">
+                    </div>
+
+                    <div class="image-upload-wrap" id="back-wrap" onclick="triggerFileInput('back-file')">
+                        <input class="file-upload-input" type="file" id="back-file" name="back_file" accept="image/*" onchange="readURL(this, 'back-wrap', 'back-image')" style="display:none;">
+                        <div class="drag-text">
+                            <h3>Glissez et déposez l'image de l'Arrière</h3>
+                        </div>
+                    </div>
+                    <div class="image-preview" id="back-image-wrap">
+                        <img id="back-image" src="#" alt="Back Image">
                     </div>
                 </div>
+
+                <div id="passport-options" style="display:none;">
+                    <div class="image-upload-wrap" id="passport-wrap" onclick="triggerFileInput('passport-file')">
+                        <input class="file-upload-input" type="file" id="passport-file" name="passport_file" accept="image/*" onchange="readURL(this, 'passport-wrap', 'passport-image')" style="display:none;">
+                        <div class="drag-text">
+                            <h3>Glissez et déposez votre passeport</h3>
+                        </div>
+                    </div>
+                    <div class="image-preview" id="passport-image-wrap">
+                        <img id="passport-image" src="#" alt="Passport Image">
+                    </div>
+                </div>
+
+                <hr>
                 <button class="file-upload-btn" type="submit">Télécharger</button>
             </form>
+
+
         </div>
     </div>
-
-    <script class="jsbin" src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
     <script>
-        function readURL(input) {
+        function triggerFileInput(inputId) {
+            document.getElementById(inputId).click();
+        }
+
+        function readURL(input, wrapId, imageId) {
             if (input.files && input.files[0]) {
                 var reader = new FileReader();
-
                 reader.onload = function(e) {
-                    $('.image-upload-wrap').hide();
-                    $('.file-upload-image').attr('src', e.target.result);
-                    $('.file-upload-content').show();
-                    $('.scanner-overlay').css('opacity', '1');
+                    $('#' + imageId).attr('src', e.target.result);
+                    $('#' + wrapId).hide();
+                    $('#' + imageId + '-wrap').show();
                 };
-
                 reader.readAsDataURL(input.files[0]);
-            } else {
-                removeUpload();
             }
         }
 
-        function removeUpload() {
-            $('.file-upload-input').replaceWith($('.file-upload-input').clone());
-            $('.file-upload-content').hide();
-            $('.image-upload-wrap').show();
-            $('.scanner-overlay').css('opacity', '0');
+        function showUploadOptions() {
+            var documentType = document.getElementById("document-type").value;
+            document.getElementById("id-card-options").style.display = "none";
+            document.getElementById("passport-options").style.display = "none";
+            if (documentType === "id-card") {
+                document.getElementById("id-card-options").style.display = "block";
+            } else if (documentType === "passport") {
+                document.getElementById("passport-options").style.display = "block";
+            }
         }
 
-        $('.image-upload-wrap').bind('dragover', function () {
-            $('.image-upload-wrap').addClass('image-dropping');
-        });
-        $('.image-upload-wrap').bind('dragleave', function () {
-            $('.image-upload-wrap').removeClass('image-dropping');
-        });
+
+
+
+
     </script>
 </body>
 </html>

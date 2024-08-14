@@ -249,7 +249,7 @@
             window.location.href = "/success";
             instructions.textContent = "Détection de vivacité réussie. Vous êtes vérifié.";
         } else if (allActionsDetected && !allSamePerson) {
-            instructions.textContent = "Détection de vivacité réussie. Ce n'est pas la même personne.";
+            instructions.textContent = "Détection de vivacité réussie,mais ce n'est pas la même personne.";
         } else {
             let undetectedActions = [];
             for (let i = 0; i < actions.length; i++) {
