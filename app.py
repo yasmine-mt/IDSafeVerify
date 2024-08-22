@@ -32,7 +32,7 @@ predictor = dlib.shape_predictor('models/shape_predictor_68_face_landmarks.dat')
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
 
-actions = ["Souriez", "Tournez à droite", "Tournez à gauche", "Levez les yeux", "Baissez les yeux", "Clignez des yeux", "Secouez la tête"]
+actions = ["Souriez",  "Levez les yeux", "Baissez les yeux", "Clignez des yeux", "Secouez la tête"]
 
 
 def find_existing_face_image(face_filename):
@@ -269,8 +269,7 @@ def compare_selfie():
     """
        Compares faces if they are similar
        :return: similarity score and a comparison result
-    """
-
+       """
     if 'selfie' not in request.files:
         return jsonify(error="Error: No file part."), 400
 
