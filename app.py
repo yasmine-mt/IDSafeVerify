@@ -161,8 +161,6 @@ def upload_id():
             cropped_back = detector.crop_area(back_image)
             result = reader.process(cropped_back)
 
-            os.remove(back_file_path)
-
             normalized_fields = process_mrz_data(result)
 
             front_filename = "front_" + secure_filename(front_file.filename)
@@ -174,7 +172,7 @@ def upload_id():
 
             face_filename = process_face_detection(img, front_file.filename)
             os.remove(front_file_path)
-
+            os.remove(back_file_path)
             return render_template('profile.html', face_filename=face_filename, mrz_data=normalized_fields, error=None)
 
         else:
@@ -217,36 +215,51 @@ def process_mrz_data(result):
 
 def process_face_detection(image, filename):
     """
-    Detects the face in the provided image and returns the filename of the cropped face image.
+    Detects the face in the top left corner of the provided image and returns the filename of the cropped face image.
     """
+    # Convert the image to grayscale for face detection
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+
     faces = face_cascade.detectMultiScale(gray, 1.1, 4)
 
     if len(faces) == 0:
         raise Exception("No faces detected in the image.")
 
-    for (x, y, w, h) in faces:
-        margin = int(0.2 * w)
-        x_start = max(x - margin, 0)
-        y_start = max(y - margin, 0)
-        x_end = min(x + w + margin, image.shape[1])
-        y_end = min(y + h + margin, image.shape[0])
+    faces = sorted(faces, key=lambda face: face[0] + face[1])
 
-        face_crop = image[y_start:y_end, x_start:x_end]
-        mask = np.zeros((face_crop.shape[0], face_crop.shape[1]), dtype=np.uint8)
-        center = (face_crop.shape[1] // 2, face_crop.shape[0] // 2)
-        radius = min(center[0], center[1], face_crop.shape[1] - center[0], face_crop.shape[0] - center[1])
-        cv2.circle(mask, center, radius, (255, 255, 255), -1)
+    x, y, w, h = faces[0]
 
-        face_crop_masked = cv2.bitwise_and(face_crop, face_crop, mask=mask)
-        b, g, r = cv2.split(face_crop_masked)
-        alpha = mask
-        face_crop_rgba = cv2.merge((b, g, r, alpha))
+    margin = int(0.2 * w)
+    x_start = max(x - margin, 0)
+    y_start = max(y - margin, 0)
+    x_end = min(x + w + margin, image.shape[1])
+    y_end = min(y + h + margin, image.shape[0])
 
-        face_filename = "face_" + secure_filename(filename).rsplit('.', 1)[0] + ".png"
-        face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
-        cv2.imwrite(face_file_path, face_crop_rgba)
+    face_crop = image[y_start:y_end, x_start:x_end]
+
+    crop_height, crop_width = face_crop.shape[:2]
+    if crop_height > crop_width:
+        pad = (crop_height - crop_width) // 2
+        face_crop = cv2.copyMakeBorder(face_crop, 0, 0, pad, pad, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    elif crop_width > crop_height:
+        pad = (crop_width - crop_height) // 2
+        face_crop = cv2.copyMakeBorder(face_crop, pad, pad, 0, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+
+    mask = np.zeros((face_crop.shape[0], face_crop.shape[1]), dtype=np.uint8)
+    center = (face_crop.shape[1] // 2, face_crop.shape[0] // 2)
+    radius = min(center[0], center[1], face_crop.shape[1] - center[0], face_crop.shape[0] - center[1])
+    cv2.circle(mask, center, radius, (255, 255, 255), -1)
+
+    face_crop_masked = cv2.bitwise_and(face_crop, face_crop, mask=mask)
+
+    b, g, r = cv2.split(face_crop_masked)
+    alpha = mask
+    face_crop_rgba = cv2.merge((b, g, r, alpha))
+    face_filename = "face_" + secure_filename(filename).rsplit('.', 1)[0] + ".png"
+    face_file_path = os.path.join(app.config['UPLOAD_FOLDER'], face_filename)
+    cv2.imwrite(face_file_path, face_crop_rgba)
 
     return face_filename
 
@@ -254,9 +267,10 @@ def process_face_detection(image, filename):
 @app.route('/compare_selfie', methods=['POST'])
 def compare_selfie():
     """
-    Compares faces if they are similar
-    :return: similarity score and a comparison result
+       Compares faces if they are similar
+       :return: similarity score and a comparison result
     """
+
     if 'selfie' not in request.files:
         return jsonify(error="Error: No file part."), 400
 
@@ -265,9 +279,7 @@ def compare_selfie():
         return jsonify(error="Error: No selected file."), 400
 
     try:
-        selfie_filename = secure_filename(file.filename)
-        selfie_path = os.path.join(app.config['UPLOAD_FOLDER'], selfie_filename)
-        file.save(selfie_path)
+        selfie_image = face_recognition.load_image_file(file)
 
         face_filename = request.form.get('face_filename')
         if not face_filename:
@@ -277,17 +289,15 @@ def compare_selfie():
         if not os.path.exists(face_file_path):
             return jsonify(error="Error: Face image not found."), 400
 
-        selfie_image = face_recognition.load_image_file(selfie_path)
+        face_image = face_recognition.load_image_file(face_file_path)
+
         selfie_encodings = face_recognition.face_encodings(selfie_image)
         if len(selfie_encodings) == 0:
-            os.remove(selfie_path)
             return jsonify(error="Error: No faces detected in the selfie."), 400
 
         selfie_encoding = selfie_encodings[0]
-        face_image = face_recognition.load_image_file(face_file_path)
         face_encodings = face_recognition.face_encodings(face_image)
         if len(face_encodings) == 0:
-            os.remove(selfie_path)
             return jsonify(error="Error: No faces detected in the ID photo."), 400
 
         face_encoding = face_encodings[0]
@@ -295,13 +305,11 @@ def compare_selfie():
         similarity_score = 1 - distance
         similarity_threshold = 0.6
         comparison_result = bool(distance < similarity_threshold)
-        os.remove(selfie_path)
 
         return render_template('comparison_result.html', comparison_result=comparison_result,
                                similarity_score=similarity_score)
     except Exception as e:
         return jsonify(error=str(e)), 500
-
 
 @app.route('/verify_selfie')
 def verify_selfie():
@@ -390,7 +398,7 @@ def analyze_actions(landmarks, action, frame):
                                                 flags=cv2.CASCADE_SCALE_IMAGE)
         mouth = shape[48:60]
         mouth_width = np.linalg.norm(mouth[0] - mouth[6])
-        smile_threshold = 30  # Adjust based on validation
+        smile_threshold = 30
         if len(smiles) > 0 and mouth_width > smile_threshold:
             return "Sourire détecté"
         else:
